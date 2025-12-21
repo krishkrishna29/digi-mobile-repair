@@ -1,35 +1,59 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import Dashboard from './Dashboard';
+import AdminDashboard from './AdminDashboard';
+import NewRepairRequest from './NewRepairRequest';
+import Login from './Login';
+import SignUp from './SignUp';
+import PrivateRoute from './PrivateRoute';
+import AdminRoute from './AdminRoute';
+import Payment from './Payment';
+import Home from './pages/Home';
+import Navigation from './Navigation';
+import Services from './pages/Services';
+import About from './pages/About';
+import Footer from './components/Footer';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const location = useLocation();
+ const isAuthPage = ['/', '/login', '/signup', '/services', '/about'].includes(location.pathname);
+
+  const renderContent = () => (
+    <main className="flex-grow">
+      <Routes>
+        {/* Routes with the main navigation bar */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/about" element={<About />} />
+
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/new-repair-request" element={<PrivateRoute><NewRepairRequest /></PrivateRoute>} />
+        <Route path="/payment" element={<PrivateRoute><Payment /></PrivateRoute>} />
+
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+      </Routes>
+    </main>
+  );
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className="min-h-screen bg-gray-900 text-white font-sans flex flex-col">
+      {isAuthPage && <Navigation />}
+      {renderContent()}
+      <Footer />
+    </div>
+  );
+}
+
+function AppWrapper() {
+  return (
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <App />
+    </Router>
   )
 }
 
-export default App
+export default AppWrapper;

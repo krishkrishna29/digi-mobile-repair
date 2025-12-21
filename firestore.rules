@@ -1,0 +1,24 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      // Allow user creation on signup
+      allow create: if request.auth != null;
+      // Allow users to read their own data
+      allow read: if request.auth.uid == userId;
+      // Allow users to update their own data
+      allow update: if request.auth.uid == userId;
+    }
+    match /repairRequests/{documentId} {
+      // Allow authenticated users to create repair requests
+      allow create: if request.auth != null;
+      // Allow users to read their own repair requests
+      allow read: if request.auth.uid == resource.data.userId;
+      // Allow admins to read all repair requests
+      allow list, get: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Allow admins to update repair requests
+      allow update: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
