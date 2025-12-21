@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { signOut } from 'firebase/auth';
 import {
@@ -19,13 +19,9 @@ import {
   Bars3Icon,
   BanknotesIcon,
   ClockIcon,
-  CurrencyDollarIcon,
-  ArrowTrendingUpIcon,
-  FunnelIcon,
-  PencilIcon,
-  TrashIcon
+  EllipsisVerticalIcon,
 } from '@heroicons/react/24/solid';
-import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Notification from './Notification';
 import Customers from './Customers';
 import Promotions from './Promotions';
@@ -50,109 +46,90 @@ const menuItems = [
   { id: 'promotions', text: 'Offers & Promotions', icon: CalendarDaysIcon },
 ];
 
-const repairJobsData = [
-    { id: 'MRJ-001', customer: { name: 'Alex Johnson', avatar: 'https://randomuser.me/api/portraits/men/32.jpg' }, email: 'alex.j@email.com', device: 'iPhone 12 Pro', status: 'In Progress', technician: 'John Brown' },
-    { id: 'MRJ-002', customer: { name: 'Sarah Smith', avatar: 'https://randomuser.me/api/portraits/women/44.jpg' }, email: 'sarahs@email.com', device: 'iPhone 11', status: 'Completed', technician: 'Kevin Wilson' },
-    { id: 'MRJ-003', customer: { name: 'Michael Lee', avatar: 'https://randomuser.me/api/portraits/men/33.jpg' }, email: 'michael@email.com', device: 'Samsung Galaxy S21', status: 'Pending', technician: 'Joshua Davis' },
-    { id: 'MRJ-004', customer: { name: 'Emma Garcia', avatar: 'https://randomuser.me/api/portraits/women/47.jpg' }, email: 'emma.g@email.com', device: 'Google Pixel 5', status: 'In Progress', technician: 'Linda Martinez' },
-    { id: 'MRJ-005', customer: { name: 'Daniel Rodriguez', avatar: 'https://randomuser.me/api/portraits/men/35.jpg' }, email: 'daniel.r@email.com', device: 'iPhone XR', status: 'Completed', technician: 'John Brown' },
-];
-
 const getStatusChip = (status) => {
+    const baseClasses = "px-3 py-1 text-sm font-medium rounded-full";
     switch (status) {
         case 'In Progress':
-            return <span className="px-3 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-full">{status}</span>;
+            return <span className={`${baseClasses} text-blue-800 bg-blue-100`}>{status}</span>;
         case 'Completed':
-            return <span className="px-3 py-1 text-sm font-medium text-green-800 bg-green-100 rounded-full">{status}</span>;
+            return <span className={`${baseClasses} text-green-800 bg-green-100`}>{status}</span>;
         case 'Pending':
-            return <span className="px-3 py-1 text-sm font-medium text-gray-800 bg-gray-200 rounded-full">{status}</span>;
+            return <span className={`${baseClasses} text-gray-800 bg-gray-200`}>{status}</span>;
         default:
-            return null;
+            return <span className={`${baseClasses} text-gray-800 bg-gray-200`}>{status}</span>;
     }
 };
 
-const RepairJobs = () => (
-    <div className="bg-white p-8 rounded-xl shadow-lg">
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Repair Jobs</h2>
-            <div className="flex items-center space-x-2">
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700">New Repair Job</button>
-                <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold flex items-center"><FunnelIcon className="h-5 w-5 mr-2"/>Filter</button>
-                <button className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold flex items-center">Export <ChevronDownIcon className="h-5 w-5 ml-2"/></button>
-            </div>
-        </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="text-gray-500 font-semibold">
-                        <th className="py-3 px-4">Repair ID</th>
-                        <th className="py-3 px-4">Customer Name</th>
-                        <th className="py-3 px-4">Email</th>
-                        <th className="py-3 px-4">Device</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4">Technician</th>
-                        <th className="py-3 px-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {repairJobsData.map(job => (
-                        <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50">
-                            <td className="py-4 px-4">{job.id}</td>
-                            <td className="py-4 px-4 flex items-center">
-                                <img src={job.customer.avatar} alt={job.customer.name} className="h-8 w-8 rounded-full mr-3"/>
-                                <span>{job.customer.name}</span>
-                            </td>
-                            <td className="py-4 px-4">{job.email}</td>
-                            <td className="py-4 px-4">{job.device}</td>
-                            <td className="py-4 px-4">{getStatusChip(job.status)}</td>
-                            <td className="py-4 px-4">{job.technician}</td>
-                            <td className="py-4 px-4 flex space-x-2">
-                                <PencilIcon className="h-5 w-5 text-gray-400 cursor-pointer"/>
-                                <TrashIcon className="h-5 w-5 text-gray-400 cursor-pointer"/>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    </div>
-);
+const RepairJobs = ({ repairs, users, onStatusChange }) => {
+    const [openMenu, setOpenMenu] = useState(null);
+    const menuRef = useRef(null);
 
-const SalesAndRevenue = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-bold text-lg mb-4">Revenue</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={[]} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <XAxis dataKey="name" />
-                        <YAxis tickFormatter={(value) => `${value / 1000}k`} />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="revenue" stroke="#8884d8" strokeWidth={2} />
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-bold text-lg mb-4">Recent Transactions</h3>
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setOpenMenu(null);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
+
+    const handleToggleMenu = (jobId) => {
+        setOpenMenu(openMenu === jobId ? null : jobId);
+    };
+
+    const handleChangeStatus = (job, newStatus) => {
+        onStatusChange(job.id, job.userId, job.device, newStatus);
+        setOpenMenu(null); 
+    };
+
+    return (
+        <div className="bg-white p-8 rounded-xl shadow-lg">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">All Repair Jobs</h2>
+            <div className="overflow-x-auto">
                 <table className="w-full text-left">
                     <thead>
-                        <tr className="text-gray-500">
-                            <th className="pb-2">ID</th>
-                            <th className="pb-2">Customer</th>
-                            <th className="pb-2">Amount</th>
-                            <th className="pb-2">Status</th>
+                        <tr className="text-gray-500 font-semibold">
+                            <th className="py-3 px-4">Customer Name</th>
+                            <th className="py-3 px-4">Device</th>
+                            <th className="py-3 px-4">Issue</th>
+                            <th className="py-3 px-4">Submitted On</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4 text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {[].map((transaction, index) => (
-                            <tr key={index} className="border-b border-gray-200">
-                                <td className="py-2">{transaction.id}</td>
-                                <td className="py-2">{transaction.customer}</td>
-                                <td className="py-2">{transaction.amount}</td>
-                                <td className="py-2">
-                                    <span className="px-3 py-1 rounded-full text-sm font-semibold bg-green-200 text-green-800">
-                                        {transaction.status}
-                                    </span>
+                        {repairs.map(job => (
+                            <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50">
+                                <td className="py-4 px-4">{users[job.userId]?.displayName || 'N/A'}</td>
+                                <td className="py-4 px-4">{job.device}</td>
+                                <td className="py-4 px-4">{job.issue}</td>
+                                <td className="py-4 px-4">{job.createdAt?.toDate().toLocaleDateString()}</td>
+                                <td className="py-4 px-4">{getStatusChip(job.status)}</td>
+                                <td className="py-4 px-4 text-center">
+                                    <div className="relative inline-block text-left" ref={menuRef}>
+                                        <button onClick={() => handleToggleMenu(job.id)} className="p-2 rounded-full hover:bg-gray-200">
+                                            <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
+                                        </button>
+                                        {openMenu === job.id && (
+                                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 ring-1 ring-black ring-opacity-5">
+                                                <div className="py-1">
+                                                    {['Pending', 'In Progress', 'Completed'].map(status => (
+                                                        <button
+                                                            key={status}
+                                                            onClick={() => handleChangeStatus(job, status)}
+                                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                                                            disabled={job.status === status}
+                                                        >
+                                                            Mark as {status}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -160,74 +137,18 @@ const SalesAndRevenue = () => (
                 </table>
             </div>
         </div>
+    );
+};
 
-        <div className="space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                 <div className="flex items-center mb-4">
-                    <div className="p-3 bg-purple-200 rounded-full mr-4">
-                        <span className="text-purple-600 font-bold text-xl">S</span>
-                    </div>
-                    <div>
-                        <p className="text-gray-500">Total Revenue</p>
-                        <p className="text-2xl font-bold">$65,000</p>
-                    </div>
-                </div>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <div className="flex items-center mb-4">
-                    <div className="p-3 bg-blue-200 rounded-full mr-4">
-                        <TicketIcon className="h-6 w-6 text-blue-600" />
-                    </div>
-                    <div>
-                        <p className="text-gray-500">Total Orders</p>
-                        <p className="text-2xl font-bold">120</p>
-                    </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5 flex">
-                     <div className="bg-green-500 h-2.5 rounded-l-full" style={{ width: '70%' }}></div>
-                    <div className="bg-yellow-400 h-2.5 rounded-r-full" style={{ width: '30%' }}></div>
-                </div>
-            </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <h3 className="font-bold text-lg mb-4">Revenue by Category</h3>
-                 <div className="space-y-4">
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <span className="text-base font-medium text-gray-700">Screen Repair</span>
-                            <span className="text-sm font-medium text-gray-700">$25,000</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div className="bg-green-500 h-2.5 rounded-full" style={{ width: '60%' }}></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <span className="text-base font-medium text-gray-700">Battery Replace.</span>
-                            <span className="text-sm font-medium text-gray-700">$15,000</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div className="bg-orange-400 h-2.5 rounded-full" style={{ width: '40%' }}></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div className="flex justify-between mb-1">
-                            <span className="text-base font-medium text-gray-700">Other</span>
-                            <span className="text-sm font-medium text-gray-700">$10,000</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div className="bg-teal-400 h-2.5 rounded-full" style={{ width: '25%' }}></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+const SalesAndRevenue = () => (
+    <div className="bg-gray-200 p-8">
+        <h2 className="text-2xl font-bold">Sales & Revenue</h2>
+        <p>This section is under construction.</p>
     </div>
 );
 
-
 const DashboardContent = ({ repairs, pendingJobs, jobStatusData, weeklyTrendData }) => (
   <>
-    {/* Summary Cards */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       <div className="bg-amber-50 p-6 rounded-2xl shadow-lg flex flex-col items-center text-center">
         <div className="p-4 bg-purple-200 rounded-full mb-4">
@@ -252,7 +173,6 @@ const DashboardContent = ({ repairs, pendingJobs, jobStatusData, weeklyTrendData
       </div>
     </div>
 
-    {/* Charts */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-md">
             <h3 className="text-xl font-bold text-gray-800 mb-4">Current Job Status Breakdown</h3>
@@ -293,6 +213,7 @@ const PlaceholderContent = ({ title }) => (
 
 function AdminDashboard() {
   const [repairs, setRepairs] = useState([]);
+  const [users, setUsers] = useState({});
   const [newRequestCount, setNewRequestCount] = useState(0);
   const [activeView, setActiveView] = useState('dashboard');
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -318,7 +239,7 @@ function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'repairs'), (snapshot) => {
+    const unsubscribeRepairs = onSnapshot(collection(db, 'repairs'), (snapshot) => {
       const repairsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setRepairs(repairsData);
 
@@ -327,12 +248,39 @@ function AdminDashboard() {
         setNewRequestCount(prevCount => prevCount + newRequests.length);
       }
     });
-    return () => unsubscribe();
+
+    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        const usersData = {};
+        snapshot.forEach(doc => {
+            usersData[doc.id] = doc.data();
+        });
+        setUsers(usersData);
+    });
+
+    return () => {
+        unsubscribeRepairs();
+        unsubscribeUsers();
+    };
   }, []);
 
   const handleSignOut = () => {
     signOut(auth).then(() => {
       navigate('/login');
+    });
+  };
+
+  const handleStatusChange = async (jobId, userId, device, newStatus) => {
+    const repairRef = doc(db, 'repairs', jobId);
+    await updateDoc(repairRef, { status: newStatus });
+
+    await addDoc(collection(db, 'notifications'), {
+        userId: userId,
+        type: 'info',
+        title: 'Repair Status Updated',
+        message: `The status of your repair for "${device}" is now "${newStatus}".`,
+        read: false,
+        createdAt: serverTimestamp(),
+        relatedRepairId: jobId,
     });
   };
 
@@ -379,7 +327,7 @@ function AdminDashboard() {
       case 'sales-revenue':
         return <SalesAndRevenue />;
       case 'repair-jobs':
-        return <RepairJobs />;
+        return <RepairJobs repairs={repairs} users={users} onStatusChange={handleStatusChange} />;
       case 'customers':
         return <Customers />;
       case 'promotions':
@@ -401,7 +349,6 @@ function AdminDashboard() {
 
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-30 w-64 bg-slate-800 text-white transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out md:relative md:translate-x-0 md:flex md:flex-col`}>
         <div className="p-4 border-b border-slate-700 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Admin Panel</h1>
@@ -439,7 +386,7 @@ function AdminDashboard() {
                     {isNotificationsOpen && (
                         <div className="absolute right-0 mt-2 w-64 sm:w-80 bg-white rounded-lg shadow-lg p-4 z-10">
                             <h3 className="text-lg font-bold text-gray-800">Notifications</h3>
-                            <p className="text-gray-600 mt-2">No new notifications.</p>
+                            <p className_="text-gray-600 mt-2">No new notifications.</p>
                         </div>
                     )}
                 </div>

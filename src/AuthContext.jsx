@@ -19,15 +19,22 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        console.log('User is logged in:', user.uid);
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const role = userDoc.data().role;
-          setUserRole(role);
-          console.log('User role fetched:', role);
-        } else {
-          console.log('User document not found.');
+        try {
+            const userDoc = await getDoc(doc(db, 'users', user.uid));
+            if (userDoc.exists()) {
+                const role = userDoc.data().role;
+                setUserRole(role);
+            } else {
+                console.log('User document not found, setting role to null.');
+                setUserRole(null); 
+            }
+        } catch (error) {
+            console.error("Error fetching user role:", error);
+            setUserRole(null);
         }
+
+      } else {
+        setUserRole(null); 
       }
       setLoading(false);
     });

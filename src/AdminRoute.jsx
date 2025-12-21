@@ -9,7 +9,7 @@ const AdminRoute = ({ children }) => {
     return <div>Loading...</div>; // Or a spinner component
   }
 
-  console.log('AdminRoute check:', { currentUser, userRole });
+//  console.log('AdminRoute check:', { currentUser, userRole });
 
   if (!currentUser) {
     return <Navigate to="/login" />;
