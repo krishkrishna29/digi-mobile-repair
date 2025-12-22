@@ -89,7 +89,7 @@ const RepairJobs = ({ repairs, users, onStatusChange }) => {
         <div className="bg-white p-8 rounded-xl shadow-lg">
             <h2 className="text-2xl font-bold text-gray-800 mb-6">All Repair Jobs</h2>
             <div className="overflow-x-auto">
-                <table className="w-full text-left">
+                <table className="w-full text-left text-gray-800">
                     <thead>
                         <tr className="text-gray-500 font-semibold">
                             <th className="py-3 px-4">Customer Name</th>
@@ -103,7 +103,7 @@ const RepairJobs = ({ repairs, users, onStatusChange }) => {
                     <tbody>
                         {repairs.map(job => (
                             <tr key={job.id} className="border-b border-gray-200 hover:bg-gray-50">
-                                <td className="py-4 px-4">{users[job.userId]?.displayName || 'N/A'}</td>
+                                <td className="py-4 px-4">{users[job.userId]?.fullName || 'N/A'}</td>
                                 <td className="py-4 px-4">{job.device}</td>
                                 <td className="py-4 px-4">{job.issue}</td>
                                 <td className="py-4 px-4">{job.createdAt?.toDate().toLocaleDateString()}</td>
@@ -141,9 +141,9 @@ const RepairJobs = ({ repairs, users, onStatusChange }) => {
 };
 
 const SalesAndRevenue = () => (
-    <div className="bg-gray-200 p-8">
-        <h2 className="text-2xl font-bold">Sales & Revenue</h2>
-        <p>This section is under construction.</p>
+    <div className="bg-white p-8 rounded-xl shadow-lg">
+        <h2 className="text-2xl font-bold text-gray-800">Sales & Revenue</h2>
+        <p className="text-gray-800">This section is under construction.</p>
     </div>
 );
 
@@ -252,7 +252,7 @@ function AdminDashboard() {
     const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
         const usersData = {};
         snapshot.forEach(doc => {
-            usersData[doc.id] = doc.data();
+            usersData[doc.id] = { uid: doc.id, ...doc.data() };
         });
         setUsers(usersData);
     });
@@ -329,7 +329,7 @@ function AdminDashboard() {
       case 'repair-jobs':
         return <RepairJobs repairs={repairs} users={users} onStatusChange={handleStatusChange} />;
       case 'customers':
-        return <Customers />;
+        return <Customers users={Object.values(users)} repairs={repairs} setUsers={setUsers} />;
       case 'promotions':
         return <Promotions />;
       case 'technicians':
@@ -386,7 +386,7 @@ function AdminDashboard() {
                     {isNotificationsOpen && (
                         <div className="absolute right-0 mt-2 w-64 sm:w-80 bg-white rounded-lg shadow-lg p-4 z-10">
                             <h3 className="text-lg font-bold text-gray-800">Notifications</h3>
-                            <p className_="text-gray-600 mt-2">No new notifications.</p>
+                            <p className="text-gray-600 mt-2">No new notifications.</p>
                         </div>
                     )}
                 </div>

@@ -4,6 +4,7 @@ import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { db } from './firebase';
 import { doc, getDoc } from "firebase/firestore";
 import { EnvelopeIcon, LockClosedIcon, WrenchScrewdriverIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -24,6 +25,7 @@ const Login = () => {
 
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      toast.success('Login successfully!');
       const user = userCredential.user;
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists()) {
@@ -37,7 +39,7 @@ const Login = () => {
         navigate('/dashboard');
       }
     } catch (error) {
-      setError(error.message);
+      setError('Incorrect user ID/password');
     }
   };
 

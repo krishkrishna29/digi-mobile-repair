@@ -1,121 +1,210 @@
 import React, { useState } from 'react';
-import { FunnelIcon, ChevronDownIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid';
+import {
+  ArrowUpIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  ArrowDownTrayIcon,
+  TrashIcon,
+  WrenchScrewdriverIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  UserPlusIcon
+} from '@heroicons/react/24/outline';
+import { deleteDoc, doc } from 'firebase/firestore';
+import { db } from './firebase';
 
-const customersData = [
-    { name: 'Alex Johnson', avatar: 'https://randomuser.me/api/portraits/men/32.jpg', email: 'alex.j@email.com', phone: '(123) 456-7890', location: 'New York', status: 'Active', loyaltyTier: 'Gold', tags: ['High-Spender', 'Warranty Active'] },
-    { name: 'Sarah Smith', avatar: 'https://randomuser.me/api/portraits/women/44.jpg', email: 'sarahs@email.com', phone: '(967) 654-3210', location: 'Los Angeles', status: 'Active', loyaltyTier: 'Silver', tags: ['Frequent Visitor'] },
-    { name: 'Michael Lee', avatar: 'https://randomuser.me/api/portraits/men/33.jpg', email: 'michael@email.com', phone: '(456) 788-0123', location: 'Chicago', status: 'Inactive', loyaltyTier: 'Bronze', tags: [] },
-    { name: 'Emma Garcia', avatar: 'https://randomuser.me/api/portraits/women/47.jpg', email: 'emmag@email.com', phone: '(321) 654-9870', location: 'Houston', status: 'Active', loyaltyTier: 'Gold', tags: ['High-Spender'] },
-    { name: 'Daniel Rodriguez', avatar: 'https://randomuser.me/api/portraits/men/35.jpg', email: 'daniel.r@email.com', phone: '(789) 012-3456', location: 'Phoenix', status: 'Inactive', loyaltyTier: 'Silver', tags: ['Warranty Active'] },
-    { name: 'Olivia Taylor', avatar: 'https://randomuser.me/api/portraits/women/50.jpg', email: 'oliviat@email.com', phone: '(654) 321-0987', location: 'Miami', status: 'Active', loyaltyTier: 'Bronze', tags: ['Frequent Visitor'] },
-];
+const Customers = ({ users, repairs, setUsers }) => {
 
-const getStatusChip = (status) => {
-    return <span className={`px-3 py-1 text-sm font-medium rounded-full ${status === 'Active' ? 'text-green-800 bg-green-100' : 'text-gray-800 bg-gray-200'}`}>{status}</span>;
-};
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage] = useState(5);
 
-const getTierChip = (tier) => {
-    const tierColors = {
-        Gold: 'bg-yellow-100 text-yellow-800',
-        Silver: 'bg-gray-200 text-gray-800',
-        Bronze: 'bg-orange-100 text-orange-800',
-    };
-    return <span className={`px-3 py-1 text-sm font-medium rounded-full ${tierColors[tier]}`}>{tier}</span>;
-}
+  const getRepairStats = (userId) => {
+    const userRepairs = repairs.filter(repair => repair.userId === userId);
+    const completed = userRepairs.filter(r => r.status === 'Completed').length;
+    const pending = userRepairs.length - completed;
+    return { completed, pending, total: userRepairs.length };
+  };
 
-const Customers = () => {
-    const [selectedCustomers, setSelectedCustomers] = useState([]);
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      try {
+        await deleteDoc(doc(db, 'users', userId));
+        // After deleting from Firestore, you might want to update the state
+        setUsers(users.filter(user => user.uid !== userId));
+      } catch (error) {
+        console.error("Error deleting user:", error);
+      }
+    }
+  };
 
-    const handleSelectAll = (e) => {
-        if (e.target.checked) {
-            setSelectedCustomers(customersData.map(c => c.email));
-        } else {
-            setSelectedCustomers([]);
-        }
-    };
 
-    const handleSelectOne = (e, email) => {
-        if (e.target.checked) {
-            setSelectedCustomers([...selectedCustomers, email]);
-        } else {
-            setSelectedCustomers(selectedCustomers.filter(c => c !== email));
-        }
-    };
+  const filteredUsers = users.filter(user => {
+    const fullName = user.fullName || '';
+    const email = user.email || '';
+    return fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           email.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
-    return (
-    <div className="bg-white p-8 rounded-xl shadow-lg">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h2 className="text-2xl font-bold text-gray-800">Customers</h2>
-            <div className="flex items-center space-x-2">
-                <input type="text" placeholder="Search..." className="border border-gray-300 rounded-lg px-4 py-2 w-full md:w-auto" />
-                <button className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 whitespace-nowrap">New Customer</button>
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+
+  const paginate = (pageNumber) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
+  const totalCustomers = users.length;
+  const totalRepairs = repairs.length;
+  const completedRepairs = repairs.filter(r => r.status === 'Completed').length;
+
+
+  return (
+    <div className="bg-gray-100 p-4 sm:p-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
+        <h1 className="text-4xl font-bold text-gray-800 mb-4 sm:mb-0">Customer Management</h1>
+        <div className="flex space-x-3">
+          <button className="bg-white border border-gray-300 text-gray-800 px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50 flex items-center">
+            <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+            Export
+          </button>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 flex items-center">
+            <UserPlusIcon className="h-5 w-5 mr-2" />
+            Add Customer
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-md">
+          <p className="text-md font-semibold text-gray-600">Total Customers</p>
+          <div className="flex items-end justify-between mt-2">
+            <p className="text-5xl font-bold text-gray-900">{totalCustomers}</p>
+            <div className="flex items-center text-green-500">
+              <ArrowUpIcon className="h-5 w-5 mr-1" />
+              <span className="font-semibold">10%</span>
             </div>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-md">
+          <p className="text-md font-semibold text-gray-600">Total Repairs</p>
+          <div className="flex items-end justify-between mt-2">
+            <p className="text-5xl font-bold text-gray-900">{totalRepairs}</p>
+            <div className="flex items-center text-green-500">
+              <ArrowUpIcon className="h-5 w-5 mr-1" />
+              <span className="font-semibold">5%</span>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white p-6 rounded-xl shadow-md">
+          <p className="text-md font-semibold text-gray-600">Completed Repairs</p>
+          <div className="flex items-end justify-between mt-2">
+            <p className="text-5xl font-bold text-gray-900">{completedRepairs}</p>
+            <div className="flex items-center text-red-500">
+              <ChevronDownIcon className="h-5 w-5 mr-1" />
+              <span className="font-semibold">2%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-xl shadow-md">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">All Customers ({filteredUsers.length})</h2>
+            <p className="text-md text-gray-600">Manage and view all customer repair requests.</p>
+          </div>
+          <button className="bg-white border border-gray-300 text-gray-800 px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50 flex items-center mt-4 sm:mt-0">
+            <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+            Download All
+          </button>
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center mb-4">
-            <button className="flex items-center bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold">
-                <FunnelIcon className="h-5 w-5 mr-2"/>Filter
-            </button>
-            {selectedCustomers.length > 0 && (
-                <div className="relative">
-                    <button className="flex items-center bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold">
-                        Bulk Actions <ChevronDownIcon className="h-5 w-5 ml-2"/>
-                    </button>
-                    {/* Dropdown for bulk actions can be added here */}
-                </div>
-            )}
+        <div className="relative mb-4">
+          <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute top-1/2 -translate-y-1/2 left-3" />
+          <input
+            type="text"
+            placeholder="Search customers..."
+            className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
         <div className="overflow-x-auto">
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="text-gray-500 font-semibold">
-                        <th className="py-3 px-4 w-4">
-                            <input type="checkbox" onChange={handleSelectAll} checked={selectedCustomers.length === customersData.length} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                        </th>
-                        <th className="py-3 px-4">Name</th>
-                        <th className="py-3 px-4">Contact</th>
-                        <th className="py-3 px-4">Loyalty Tier</th>
-                        <th className="py-3 px-4">Tags</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {customersData.map(customer => (
-                        <tr key={customer.email} className="border-b border-gray-200 hover:bg-gray-50">
-                            <td className="py-4 px-4">
-                                <input type="checkbox" onChange={(e) => handleSelectOne(e, customer.email)} checked={selectedCustomers.includes(customer.email)} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                            </td>
-                            <td className="py-4 px-4 flex items-center">
-                                <img src={customer.avatar} alt={customer.name} className="h-10 w-10 rounded-full mr-4"/>
-                                <span className="font-medium text-gray-800">{customer.name}</span>
-                            </td>
-                            <td className="py-4 px-4">
-                                <div className="text-sm text-gray-800">{customer.email}</div>
-                                <div className="text-sm text-gray-500">{customer.phone}</div>
-                            </td>
-                            <td className="py-4 px-4">{getTierChip(customer.loyaltyTier)}</td>
-                            <td className="py-4 px-4">
-                                <div className="flex flex-wrap gap-1">
-                                    {customer.tags.map(tag => (
-                                        <span key={tag} className="px-2 py-1 text-xs font-medium text-blue-800 bg-blue-100 rounded-full">{tag}</span>
-                                    ))}
-                                </div>
-                            </td>
-                            <td className="py-4 px-4">{getStatusChip(customer.status)}</td>
-                            <td className="py-4 px-4 flex space-x-2">
-                                <PencilIcon className="h-5 w-5 text-gray-400 cursor-pointer hover:text-blue-600"/>
-                                <TrashIcon className="h-5 w-5 text-gray-400 cursor-pointer hover:text-red-600"/>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-sm font-semibold text-gray-600 bg-gray-100 uppercase">
+                <th className="p-4">Customer Name</th>
+                <th className="p-4">Email</th>
+                <th className="p-4 text-center">Total Repairs</th>
+                <th className="p-4 text-center">Completed</th>
+                <th className="p-4 text-center">Pending</th>
+                <th className="p-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {currentUsers.map(user => {
+                const stats = getRepairStats(user.uid);
+                return (
+                  <tr key={user.uid} className="hover:bg-gray-50 text-gray-800">
+                    <td className="p-4 whitespace-nowrap font-medium">{user.fullName}</td>
+                    <td className="p-4 whitespace-nowrap text-gray-600">{user.email}</td>
+                    <td className="p-4 whitespace-nowrap text-center font-semibold text-blue-600 flex items-center justify-center">
+                      <WrenchScrewdriverIcon className="h-5 w-5 mr-2" />
+                      {stats.total}
+                    </td>
+                    <td className="p-4 whitespace-nowrap text-center font-semibold text-green-600 flex items-center justify-center">
+                      <CheckCircleIcon className="h-5 w-5 mr-2" />
+                      {stats.completed}
+                    </td>
+                    <td className="p-4 whitespace-nowrap text-center font-semibold text-red-600 flex items-center justify-center">
+                      <XCircleIcon className="h-5 w-5 mr-2" />
+                      {stats.pending}
+                    </td>
+                    <td className="p-4 whitespace-nowrap text-center">
+                      <button onClick={() => handleDeleteUser(user.uid)} className="text-red-600 hover:text-red-800">
+                        <TrashIcon className="h-5 w-5" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-    </div>
-);
 
-}
+        <div className="flex justify-between items-center mt-6">
+            <button
+                onClick={() => paginate(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+            >
+                <ChevronLeftIcon className="h-5 w-5 mr-2" />
+                Previous
+            </button>
+            <span className="text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+            </span>
+            <button
+                onClick={() => paginate(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+            >
+                Next
+                <ChevronRightIcon className="h-5 w-5 ml-2" />
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default Customers;

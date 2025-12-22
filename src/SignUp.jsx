@@ -4,6 +4,7 @@ import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db } from './firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { UserIcon, EnvelopeIcon, LockClosedIcon, WrenchScrewdriverIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 
 export default function SignUp() {
   const [fullName, setFullName] = useState('');
@@ -59,6 +60,7 @@ export default function SignUp() {
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      toast.success('Signup successful!');
       const user = userCredential.user;
       await setDoc(doc(db, 'users', user.uid), {
         fullName,
@@ -70,7 +72,7 @@ export default function SignUp() {
       if (error.code === 'auth/email-already-in-use') {
         setErrors({ email: 'Email address is already in use.' });
       } else {
-        setErrors({ form: error.message });
+        setErrors({ form: 'Incorrect user ID/password' });
       }
     }
   };

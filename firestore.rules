@@ -16,6 +16,8 @@ service cloud.firestore {
       allow read, update: if request.auth.uid == userId || isAdmin();
       // Allow admins to list all users
       allow list: if isAdmin();
+      // Allow admins to delete users
+      allow delete: if isAdmin();
     }
 
     // Rules for the 'repairs' collection

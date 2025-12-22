@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -17,24 +17,22 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
       if (user) {
-        try {
-            const userDoc = await getDoc(doc(db, 'users', user.uid));
-            if (userDoc.exists()) {
-                const role = userDoc.data().role;
-                setUserRole(role);
-            } else {
-                console.log('User document not found, setting role to null.');
-                setUserRole(null); 
-            }
-        } catch (error) {
-            console.error("Error fetching user role:", error);
-            setUserRole(null);
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          setCurrentUser(user);
+          setUserRole(userDoc.data().role);
+        } else {
+          // User exists in Auth, but not in Firestore.
+          // This could be a manually deleted user.
+          // Force a sign out.
+          await signOut(auth);
+          setCurrentUser(null);
+          setUserRole(null);
         }
-
       } else {
-        setUserRole(null); 
+        setCurrentUser(null);
+        setUserRole(null);
       }
       setLoading(false);
     });
