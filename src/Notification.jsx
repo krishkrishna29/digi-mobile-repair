@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, limit, onSnapshot, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, writeBatch, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import { ChatBubbleLeftRightIcon, XMarkIcon, CheckIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
@@ -23,7 +23,7 @@ const formatTimeAgo = (timestamp) => {
   return Math.floor(seconds) + ' seconds ago';
 };
 
-function Notification({ newRequestCount, onClear, onNotificationClick }) {
+function Notification({ newRequestCount, onClear, onNotificationClick, onViewAll }) {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,7 +42,6 @@ function Notification({ newRequestCount, onClear, onNotificationClick }) {
       const fetchedNotifications = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        // Ensure createdAt is converted to a Firestore Timestamp if not already
         createdAt: doc.data().createdAt
       }));
       setNotifications(fetchedNotifications);
@@ -60,20 +59,28 @@ function Notification({ newRequestCount, onClear, onNotificationClick }) {
   };
 
   const handleMarkAllAsRead = async () => {
-    const batch = writeBatch(db);
-    notifications.filter(n => !n.read).forEach((notification) => {
-      const notificationRef = doc(db, 'notifications', notification.id);
-      batch.update(notificationRef, { read: true });
-    });
-    await batch.commit();
-    onClear(); // Call the prop to clear the count in AdminDashboard
+    try {
+      const batch = writeBatch(db);
+      const unread = notifications.filter(n => !n.read);
+      unread.forEach((notification) => {
+        const notificationRef = doc(db, 'notifications', notification.id);
+        batch.update(notificationRef, { read: true });
+      });
+      await batch.commit();
+      onClear(); 
+    } catch (error) {
+      console.error("Error marking all as read:", error);
+    }
   };
 
   const handleNotificationItemClick = async (notification) => {
-    // Mark individual notification as read on click
     if (!notification.read) {
-      const notificationRef = doc(db, 'notifications', notification.id);
-      await updateDoc(notificationRef, { read: true });
+      try {
+        const notificationRef = doc(db, 'notifications', notification.id);
+        await updateDoc(notificationRef, { read: true });
+      } catch (error) {
+        console.error("Error marking notification as read:", error);
+      }
     }
     setIsOpen(false);
     if (onNotificationClick) {
@@ -84,7 +91,7 @@ function Notification({ newRequestCount, onClear, onNotificationClick }) {
   const unreadNotifications = notifications.filter(n => !n.read);
 
   return (
-    <div>
+    <div className="relative z-50">
       <button
         onClick={handleToggle}
         className="fixed bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ease-in-out transform hover:scale-105"
@@ -110,7 +117,7 @@ function Notification({ newRequestCount, onClear, onNotificationClick }) {
             {isLoading ? (
               <p className="text-gray-500 text-center">Loading notifications...</p>
             ) : notifications.length === 0 ? (
-              <p className="text-gray-500 text-center">No new notifications.</p>
+              <p className="text-gray-500 text-center">No notifications.</p>
             ) : (
               notifications.map((notification) => (
                 <div
@@ -127,26 +134,24 @@ function Notification({ newRequestCount, onClear, onNotificationClick }) {
             )}
           </div>
 
-          {notifications.length > 0 && (
-            <div className="pt-4 border-t border-gray-200 mt-4 space-y-2">
-              {unreadNotifications.length > 0 && (
-                <button
-                  onClick={handleMarkAllAsRead}
-                  className="flex items-center justify-center w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                >
-                  <CheckIcon className="h-5 w-5 mr-2"/>
-                  Mark all as read
-                </button>
-              )}
+          <div className="pt-4 border-t border-gray-200 mt-4 space-y-2">
+            {unreadNotifications.length > 0 && (
               <button
-                onClick={() => { /* Navigate to a dedicated notifications page */ setIsOpen(false); /* onNotificationClick to navigate to relevant page */ }}
-                className="flex items-center justify-center w-full px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition-colors"
+                onClick={handleMarkAllAsRead}
+                className="flex items-center justify-center w-full px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
               >
-                <ArrowRightIcon className="h-5 w-5 mr-2"/>
-                View All Notifications
+                <CheckIcon className="h-5 w-5 mr-2"/>
+                Mark all as read
               </button>
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => { setIsOpen(false); if (onViewAll) onViewAll(); }}
+              className="flex items-center justify-center w-full px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 transition-colors"
+            >
+              <ArrowRightIcon className="h-5 w-5 mr-2"/>
+              View All Notifications
+            </button>
+          </div>
         </div>
       )}
     </div>

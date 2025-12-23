@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, deleteDoc, query, where, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { signOut } from 'firebase/auth';
 import {
@@ -323,6 +323,7 @@ function AdminDashboard({users, repairs, setUsers}) {
   const [isUpdateStatusModalOpen, setIsUpdateStatusModalOpen] = useState(false);
   const [jobToUpdateStatus, setJobToUpdateStatus] = useState(null);
   const [technicians, setTechnicians] = useState([]);
+  const [allNotifications, setAllNotifications] = useState([]);
   const navigate = useNavigate();
   const profileMenuRef = useRef(null);
   const notificationsMenuRef = useRef(null);
@@ -344,14 +345,38 @@ function AdminDashboard({users, repairs, setUsers}) {
 
   useEffect(() => {
     const unsubscribeRepairs = onSnapshot(collection(db, 'repairs'), (snapshot) => {
-      const newRequests = snapshot.docChanges().filter(change => change.type === 'added');
-      if (newRequests.length > 0) {
-        setNewRequestCount(prevCount => prevCount + newRequests.length);
-      }
+        snapshot.docChanges().forEach(async (change) => {
+            if (change.type === 'added') {
+                const newRepair = { id: change.doc.id, ...change.doc.data() };
+                // Ensure we don't create multiple notifications for the same repair
+                // We'll use a type 'repair_request_new'
+                // This is just a basic implementation. Ideally, this should be handled by a Cloud Function.
+                // But for IDX/Studio purposes, we can do it here for now.
+                
+                // Add unread notification for Admin
+                await addDoc(collection(db, 'notifications'), {
+                    title: 'New Repair Request',
+                    message: `A new repair request for "${newRepair.device}" has been submitted.`,
+                    type: 'repair_request_new',
+                    read: false,
+                    createdAt: serverTimestamp(),
+                    relatedRepairId: newRepair.id
+                });
+            }
+        });
     });
     
-    const q = query(collection(db, "users"), where("role", "==", "technician"));
-    const unsubscribeTechnicians = onSnapshot(q, (querySnapshot) => {
+    // Listen to ALL unread notifications for the count
+    const qNotifications = query(
+        collection(db, 'notifications'),
+        where('read', '==', false)
+    );
+    const unsubscribeNotificationsCount = onSnapshot(qNotifications, (snapshot) => {
+        setNewRequestCount(snapshot.size);
+    });
+
+    const qTechs = query(collection(db, "users"), where("role", "==", "technician"));
+    const unsubscribeTechnicians = onSnapshot(qTechs, (querySnapshot) => {
         const techs = [];
         querySnapshot.forEach((doc) => {
             techs.push({id: doc.id, ...doc.data()});
@@ -361,6 +386,7 @@ function AdminDashboard({users, repairs, setUsers}) {
 
     return () => {
         unsubscribeRepairs();
+        unsubscribeNotificationsCount();
         unsubscribeTechnicians();
     };
   }, []);
@@ -449,7 +475,14 @@ function AdminDashboard({users, repairs, setUsers}) {
   };
 
   const clearNewRequests = () => {
-    setNewRequestCount(0);
+    // This is now handled in the Notification component itself
+  };
+  
+  const handleNotificationClick = (notification) => {
+      if (notification.relatedRepairId) {
+          setActiveView('repair-jobs');
+          // Optional: Scroll to the job or highlight it
+      }
   };
 
   const completedJobs = repairs.filter(r => r.status === 'Completed').length;
@@ -545,13 +578,19 @@ function AdminDashboard({users, repairs, setUsers}) {
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
                 <div className="relative">
-                    <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className='p-2 rounded-full hover:bg-gray-200'>
+                    <button onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} className='p-2 rounded-full hover:bg-gray-200 relative'>
                         <BellIcon className="h-6 w-6 text-gray-500" />
+                        {newRequestCount > 0 && (
+                            <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                                {newRequestCount}
+                            </span>
+                        )}
                     </button>
                     {isNotificationsOpen && (
                         <div ref={notificationsMenuRef} className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl p-4 z-30">
-                            <h3 className="text-lg font-bold text-gray-800">Notifications</h3>
-                            <p className="text-gray-600 mt-2">No new notifications.</p>
+                            <h3 className="text-lg font-bold text-gray-800">Recent Notifications</h3>
+                            {/* This is a simple list. Ideally, this should also fetch from Firestore like the Notification component */}
+                            <p className="text-gray-600 mt-2">Check the floating icon for detailed notifications.</p>
                         </div>
                     )}
                 </div>
@@ -577,7 +616,11 @@ function AdminDashboard({users, repairs, setUsers}) {
           {renderContent()}
         </main>
 
-        <Notification newRequestCount={newRequestCount} onClear={clearNewRequests} />
+        <Notification 
+            newRequestCount={newRequestCount} 
+            onClear={clearNewRequests} 
+            onNotificationClick={handleNotificationClick}
+        />
       </div>
     </div>
     <ConfirmationModal
