@@ -25,6 +25,7 @@ import {
   TrashIcon,
   CheckCircleIcon,
   XCircleIcon,
+  PencilIcon,
 } from '@heroicons/react/24/solid';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Notification from './Notification';
@@ -37,6 +38,7 @@ import Notifications from './Notifications';
 import Support from './Support';
 import ConfirmationModal from './ConfirmationModal';
 import AssignJobModal from './AssignJobModal';
+import UpdateStatusModal from './UpdateStatusModal';
 
 const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F'];
 
@@ -69,7 +71,7 @@ const getStatusChip = (status) => {
     }
 };
 
-const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick }) => {
+const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick, onUpdateStatusClick }) => {
     const navigate = useNavigate();
     const [openMenu, setOpenMenu] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -79,10 +81,11 @@ const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick
         setOpenMenu(openMenu === jobId ? null : jobId);
     };
 
-    const handleChangeStatus = (job, newStatus) => {
-        onStatusChange(job.id, job.userId, job.device, newStatus);
+    const handleDelete = (jobId) => {
+        onDeleteJob(jobId);
         setOpenMenu(null);
     };
+
 
     const indexOfLastJob = currentPage * jobsPerPage;
     const indexOfFirstJob = indexOfLastJob - jobsPerPage;
@@ -105,7 +108,7 @@ const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick
         <div className="p-4 sm:p-6 lg:p-8 space-y-8">
             <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-lg">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">All Repair Jobs</h2>
-                <div className="overflow-x-auto">
+                <div className="">
                     <table className="w-full text-left">
                         <thead>
                             <tr className="text-gray-500 font-semibold uppercase text-sm border-b border-gray-200">
@@ -117,37 +120,74 @@ const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick
                             </tr>
                         </thead>
                         <tbody>
-                            {currentJobs.map(job => (
-                                <tr key={job.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                                    <td className="py-4 px-4 font-medium text-gray-800">{users[job.userId]?.fullName || 'N/A'}</td>
-                                    <td className="py-4 px-4 text-gray-600"><div>{job.device}</div><div className='text-xs text-gray-400'>{job.issue}</div></td>
-                                    <td className="py-4 px-4 text-gray-600">{job.createdAt?.toDate().toLocaleDateString()}</td>
-                                    <td className="py-4 px-4">{getStatusChip(job.status)}</td>
-                                    <td className="py-4 px-4 text-center">
-                                        <div className="relative inline-block text-left">
-                                            <button onClick={() => handleToggleMenu(job.id)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
-                                                <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
-                                            </button>
-                                            {openMenu === job.id && (
-                                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl z-20 ring-1 ring-black ring-opacity-5 focus:outline-none">
-                                                    <div className="py-2">
-                                                        {['Pending', 'In Progress', 'Completed', 'Cancelled'].map(status => (
-                                                            <button
-                                                                key={status}
-                                                                onClick={() => handleChangeStatus(job, status)}
-                                                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                                                                disabled={job.status === status}
-                                                            >
-                                                                Mark as {status}
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                        {currentJobs.map((job, index) => (
+  <tr key={job.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+    <td className="py-4 px-4 font-medium text-gray-800">
+      {users[job.userId]?.fullName || 'N/A'}
+    </td>
+    <td className="py-4 px-4 text-gray-600">
+      <div>{job.device}</div>
+      <div className='text-xs text-gray-400'>{job.issue}</div>
+    </td>
+    <td className="py-4 px-4 text-gray-600">
+      {job.createdAt?.toDate().toLocaleDateString()}
+    </td>
+    <td className="py-4 px-4">
+      {getStatusChip(job.status)}
+    </td>
+    <td className="py-4 px-4 text-center">
+      <div className="relative inline-block text-left">
+        <button 
+          onClick={() => handleToggleMenu(job.id)} 
+          className="p-2 rounded-full hover:bg-gray-200 transition-colors"
+        >
+          <EllipsisVerticalIcon className="h-5 w-5 text-gray-500" />
+        </button>
+
+        {openMenu === job.id && (
+          <div 
+            className={`absolute right-0 z-50 w-56 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none 
+            ${index > currentJobs.length - 3 ? 'bottom-full mb-2' : 'mt-2'}`}
+          >
+            <div className="p-2">
+              <div className='px-2 py-2 border-b border-gray-200'>
+                <p className='text-xs font-semibold text-gray-500'>Actions</p>
+              </div>
+              
+              <div className="py-2">
+                {/* Note the explicit text-gray-900 for visibility */}
+                <button 
+                  onClick={() => { onUpdateStatusClick(job); setOpenMenu(null); }} 
+                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100 transition-colors"
+                >
+                  <PencilIcon className="h-4 w-4 mr-3 text-gray-500"/>
+                  Update Status
+                </button>
+                <button 
+                  onClick={() => { onAssignClick(job); setOpenMenu(null); }} 
+                  className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100 transition-colors"
+                >
+                  <UserPlusIcon className="h-4 w-4 mr-3 text-gray-500"/>
+                  Assign Tech
+                </button>
+              </div>
+
+              <div className='px-2 py-2 border-t border-gray-200'>
+                <button 
+                  onClick={() => handleDelete(job.id)} 
+                  className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                >
+                  <TrashIcon className="h-4 w-4 mr-3 text-red-500"/>
+                  Delete Job
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </td>
+  </tr>
+))}
                         </tbody>
                     </table>
                 </div>
@@ -201,7 +241,7 @@ const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick
 const SalesAndRevenue = () => (
     <div className="bg-white p-8 rounded-xl shadow-lg">
         <h2 className="text-2xl font-bold text-gray-800">Sales & Revenue</h2>
-        <p className="text-gray-800">This section is under construction.</p>
+        <p className="mt-4">This section is under construction.</p>
     </div>
 );
 
@@ -280,6 +320,8 @@ function AdminDashboard({users, repairs, setUsers}) {
   const [jobToDelete, setJobToDelete] = useState(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [jobToAssign, setJobToAssign] = useState(null);
+  const [isUpdateStatusModalOpen, setIsUpdateStatusModalOpen] = useState(false);
+  const [jobToUpdateStatus, setJobToUpdateStatus] = useState(null);
   const [technicians, setTechnicians] = useState([]);
   const navigate = useNavigate();
   const profileMenuRef = useRef(null);
@@ -372,6 +414,8 @@ function AdminDashboard({users, repairs, setUsers}) {
         createdAt: serverTimestamp(),
         relatedRepairId: jobId,
     });
+    setIsUpdateStatusModalOpen(false); // Close the status update modal after action
+    setJobToUpdateStatus(null);
   };
   
   const handleAssignClick = (job) => {
@@ -397,6 +441,11 @@ function AdminDashboard({users, repairs, setUsers}) {
 
     setIsAssignModalOpen(false);
     setJobToAssign(null);
+  };
+
+  const handleUpdateStatusClick = (job) => {
+    setJobToUpdateStatus(job);
+    setIsUpdateStatusModalOpen(true);
   };
 
   const clearNewRequests = () => {
@@ -442,7 +491,7 @@ function AdminDashboard({users, repairs, setUsers}) {
       case 'sales-revenue':
         return <SalesAndRevenue />;
       case 'repair-jobs':
-        return <RepairJobs repairs={repairs} users={users} onStatusChange={handleStatusChange} onDeleteJob={handleDeleteJob} onAssignClick={handleAssignClick} />;
+        return <RepairJobs repairs={repairs} users={users} onStatusChange={handleStatusChange} onDeleteJob={handleDeleteJob} onAssignClick={handleAssignClick} onUpdateStatusClick={handleUpdateStatusClick} />;
       case 'customers':
         return <Customers users={Object.values(users)} repairs={repairs} handleDeleteUser={handleDeleteRequest} />;
       case 'promotions':
@@ -544,6 +593,12 @@ function AdminDashboard({users, repairs, setUsers}) {
         onAssign={handleAssignJob}
         technicians={technicians}
         job={jobToAssign}
+    />
+    <UpdateStatusModal
+        isOpen={isUpdateStatusModalOpen}
+        onClose={() => setIsUpdateStatusModalOpen(false)}
+        onUpdateStatus={handleStatusChange}
+        job={jobToUpdateStatus}
     />
     </>
   );
