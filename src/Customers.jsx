@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ArrowUpIcon,
   ChevronDownIcon,
@@ -13,11 +14,9 @@ import {
   XCircleIcon,
   UserPlusIcon
 } from '@heroicons/react/24/outline';
-import { deleteDoc, doc } from 'firebase/firestore';
-import { db } from './firebase';
 
-const Customers = ({ users, repairs, setUsers }) => {
-
+const Customers = ({ users, repairs, handleDeleteUser }) => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage] = useState(5);
@@ -28,19 +27,6 @@ const Customers = ({ users, repairs, setUsers }) => {
     const pending = userRepairs.length - completed;
     return { completed, pending, total: userRepairs.length };
   };
-
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      try {
-        await deleteDoc(doc(db, 'users', userId));
-        // After deleting from Firestore, you might want to update the state
-        setUsers(users.filter(user => user.uid !== userId));
-      } catch (error) {
-        console.error("Error deleting user:", error);
-      }
-    }
-  };
-
 
   const filteredUsers = users.filter(user => {
     const fullName = user.fullName || '';
@@ -64,7 +50,6 @@ const Customers = ({ users, repairs, setUsers }) => {
   const totalCustomers = users.length;
   const totalRepairs = repairs.length;
   const completedRepairs = repairs.filter(r => r.status === 'Completed').length;
-
 
   return (
     <div className="bg-gray-100 p-4 sm:p-8">
@@ -144,9 +129,7 @@ const Customers = ({ users, repairs, setUsers }) => {
               <tr className="text-sm font-semibold text-gray-600 bg-gray-100 uppercase">
                 <th className="p-4">Customer Name</th>
                 <th className="p-4">Email</th>
-                <th className="p-4 text-center">Total Repairs</th>
-                <th className="p-4 text-center">Completed</th>
-                <th className="p-4 text-center">Pending</th>
+                <th className="p-4 text-center">Repairs</th>
                 <th className="p-4 text-center">Actions</th>
               </tr>
             </thead>
@@ -154,23 +137,27 @@ const Customers = ({ users, repairs, setUsers }) => {
               {currentUsers.map(user => {
                 const stats = getRepairStats(user.uid);
                 return (
-                  <tr key={user.uid} className="hover:bg-gray-50 text-gray-800">
+                  <tr key={user.uid} className="hover:bg-gray-50 text-gray-800 cursor-pointer" onClick={() => navigate(`/user/${user.uid}`)}>
                     <td className="p-4 whitespace-nowrap font-medium">{user.fullName}</td>
                     <td className="p-4 whitespace-nowrap text-gray-600">{user.email}</td>
-                    <td className="p-4 whitespace-nowrap text-center font-semibold text-blue-600 flex items-center justify-center">
-                      <WrenchScrewdriverIcon className="h-5 w-5 mr-2" />
-                      {stats.total}
-                    </td>
-                    <td className="p-4 whitespace-nowrap text-center font-semibold text-green-600 flex items-center justify-center">
-                      <CheckCircleIcon className="h-5 w-5 mr-2" />
-                      {stats.completed}
-                    </td>
-                    <td className="p-4 whitespace-nowrap text-center font-semibold text-red-600 flex items-center justify-center">
-                      <XCircleIcon className="h-5 w-5 mr-2" />
-                      {stats.pending}
+                    <td className="p-4 whitespace-nowrap text-center font-semibold">
+                      <div className="flex justify-center space-x-4">
+                        <div className="flex items-center text-blue-600">
+                            <WrenchScrewdriverIcon className="h-5 w-5 mr-2" />
+                            <span>Total: {stats.total}</span>
+                        </div>
+                        <div className="flex items-center text-green-600">
+                            <CheckCircleIcon className="h-5 w-5 mr-2" />
+                            <span>Completed: {stats.completed}</span>
+                        </div>
+                        <div className="flex items-center text-red-600">
+                            <XCircleIcon className="h-5 w-5 mr-2" />
+                            <span>Pending: {stats.pending}</span>
+                        </div>
+                      </div>
                     </td>
                     <td className="p-4 whitespace-nowrap text-center">
-                      <button onClick={() => handleDeleteUser(user.uid)} className="text-red-600 hover:text-red-800">
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user.uid); }} className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-gray-200">
                         <TrashIcon className="h-5 w-5" />
                       </button>
                     </td>

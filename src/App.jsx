@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from './firebase';
 import Dashboard from './Dashboard';
 import AdminDashboard from './AdminDashboard';
 import NewRepairRequest from './NewRepairRequest';
@@ -13,10 +15,34 @@ import Navigation from './Navigation';
 import Services from './pages/Services';
 import About from './pages/About';
 import Footer from './components/Footer';
+import UserProfile from './UserProfile';
 
 function App() {
   const location = useLocation();
- const isAuthPage = ['/', '/login', '/signup', '/services', '/about'].includes(location.pathname);
+  const isAuthPage = ['/', '/login', '/signup', '/services', '/about'].includes(location.pathname);
+
+  const [users, setUsers] = useState({});
+  const [repairs, setRepairs] = useState([]);
+
+  useEffect(() => {
+    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+        const usersData = {};
+        snapshot.forEach(doc => {
+            usersData[doc.id] = { uid: doc.id, ...doc.data() };
+        });
+        setUsers(usersData);
+    });
+
+    const unsubscribeRepairs = onSnapshot(collection(db, 'repairs'), (snapshot) => {
+      const repairsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setRepairs(repairsData);
+    });
+
+    return () => {
+        unsubscribeUsers();
+        unsubscribeRepairs();
+    };
+  }, []);
 
   const renderContent = () => (
     <main className="flex-grow">
@@ -34,7 +60,8 @@ function App() {
         <Route path="/payment" element={<PrivateRoute><Payment /></PrivateRoute>} />
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+        <Route path="/admin" element={<AdminRoute><AdminDashboard users={users} repairs={repairs} setUsers={setUsers} /></AdminRoute>} />
+        <Route path="/user/:userId" element={<AdminRoute><UserProfile users={Object.values(users)} repairs={repairs} /></AdminRoute>} />
       </Routes>
     </main>
   );
