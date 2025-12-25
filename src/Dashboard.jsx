@@ -80,35 +80,54 @@ const DashboardContent = ({ repairs, pendingJobs, completedJobs }) => (
   </>
 );
 
-const MyRepairs = ({repairs}) => (
-    <div className="bg-slate-800 p-8 rounded-xl shadow-lg mt-8">
-        <h2 className="text-2xl font-bold text-white mb-6">My Repair History</h2>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="text-slate-400 font-semibold">
-                        <th className="py-3 px-4">Repair ID</th>
-                        <th className="py-3 px-4">Device</th>
-                        <th className="py-3 px-4">Issue</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4">Date Submitted</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {repairs.map(job => (
-                        <tr key={job.id} className="border-b border-slate-700 hover:bg-slate-700/50 text-white">
-                            <td className="py-4 px-4">{job.id.substring(0, 8)}...</td>
-                            <td className="py-4 px-4">{job.device}</td>
-                            <td className="py-4 px-4">{job.issue}</td>
-                            <td className="py-4 px-4">{getStatusChip(job.status)}</td>
-                            <td className="py-4 px-4">{job.createdAt?.toDate().toLocaleDateString()}</td>
+const MyRepairs = ({repairs}) => {
+    const navigate = useNavigate();
+
+    const handlePayNow = (repairId) => {
+        navigate(`/payment/${repairId}`);
+    };
+
+    return (
+        <div className="bg-slate-800 p-8 rounded-xl shadow-lg mt-8">
+            <h2 className="text-2xl font-bold text-white mb-6">My Repair History</h2>
+            <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                    <thead>
+                        <tr className="text-slate-400 font-semibold">
+                            <th className="py-3 px-4">Repair ID</th>
+                            <th className="py-3 px-4">Device</th>
+                            <th className="py-3 px-4">Issue</th>
+                            <th className="py-3 px-4">Status</th>
+                            <th className="py-3 px-4">Date Submitted</th>
+                            <th className="py-3 px-4">Actions</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {repairs.map(job => (
+                            <tr key={job.id} className="border-b border-slate-700 hover:bg-slate-700/50 text-white">
+                                <td className="py-4 px-4">{job.id.substring(0, 8)}...</td>
+                                <td className="py-4 px-4">{job.device}</td>
+                                <td className="py-4 px-4">{job.issue}</td>
+                                <td className="py-4 px-4">{getStatusChip(job.status)}</td>
+                                <td className="py-4 px-4">{job.createdAt?.toDate().toLocaleDateString()}</td>
+                                <td className="py-4 px-4">
+                                    {job.status === 'Completed' && job.paymentMethod === 'Online Payment' && job.paymentStatus !== 'paid' && (
+                                        <button
+                                            onClick={() => handlePayNow(job.id)}
+                                            className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 shadow-lg transform hover:scale-105 transition-transform"
+                                        >
+                                            Pay Now
+                                        </button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-);
+    );
+}
 
 const NewRepairRequest = ({ currentUser }) => {
     const [device, setDevice] = useState('');

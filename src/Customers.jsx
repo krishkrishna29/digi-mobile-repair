@@ -135,9 +135,9 @@ const Customers = ({ users, repairs, handleDeleteUser }) => {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {currentUsers.map((user, index) => {
-                const stats = getRepairStats(user.uid);
+                const stats = getRepairStats(user.id);
                 return (
-                  <tr key={user.uid || index} className="hover:bg-gray-50 text-gray-800 cursor-pointer" onClick={() => navigate(`/user/${user.uid}`)}>
+                  <tr key={user.id || index} className="hover:bg-gray-50 text-gray-800 cursor-pointer" onClick={() => navigate(`/user/${user.id}`)}>
                     <td className="p-4 whitespace-nowrap font-medium">{user.fullName}</td>
                     <td className="p-4 whitespace-nowrap text-gray-600">{user.email}</td>
                     <td className="p-4 whitespace-nowrap text-center font-semibold">
@@ -157,7 +157,7 @@ const Customers = ({ users, repairs, handleDeleteUser }) => {
                       </div>
                     </td>
                     <td className="p-4 whitespace-nowrap text-center">
-                      <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user.uid); }} className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-gray-200">
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteUser(user.id); }} className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-gray-200">
                         <TrashIcon className="h-5 w-5" />
                       </button>
                     </td>

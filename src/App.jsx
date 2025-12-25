@@ -13,6 +13,7 @@ import AdminRoute from './AdminRoute';
 import Navigation from './Navigation';
 import CheckoutForm from './CheckoutForm';
 import UserProfile from './UserProfile';
+import Payment from './Payment';
 
 const App = () => {
   const [users, setUsers] = useState({});
@@ -56,6 +57,7 @@ const App = () => {
         <Route path="/admin" element={<AdminRoute><AdminDashboard users={users} repairs={repairs} setUsers={setUsers} /></AdminRoute>} />
         <Route path="/checkout" element={<CheckoutForm />} />
         <Route path="/user/:userId" element={<AdminRoute><UserProfile users={Object.values(users)} repairs={repairs} /></AdminRoute>} />
+        <Route path="/payment/:repairId" element={<Payment />} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>

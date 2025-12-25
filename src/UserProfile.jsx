@@ -5,8 +5,8 @@ import { ArrowLeftIcon, PencilIcon, EnvelopeIcon, PhoneIcon, MapPinIcon } from '
 const UserProfile = ({ users, repairs }) => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  // Find user by the uid, which is passed in the URL, not necessarily the document id.
-  const user = users.find(u => u.uid === userId);
+  // Find user by their ID, which is passed in the URL.
+  const user = users.find(u => u.id === userId);
   const userRepairs = repairs.filter(repair => repair.userId === userId);
 
   if (!user) {
@@ -45,7 +45,7 @@ const UserProfile = ({ users, repairs }) => {
               <div className="flex flex-col items-center">
                 <img 
                   className="w-32 h-32 rounded-full object-cover border-4 border-gray-200 shadow-lg mb-4"
-                  src={user.photoURL || `https://i.pravatar.cc/150?u=${user.uid}`}
+                  src={user.photoURL || `https://i.pravatar.cc/150?u=${user.id}`}
                   alt="User profile"
                 />
                 <h1 className="text-3xl font-extrabold text-gray-900">{user.fullName}</h1>
