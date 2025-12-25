@@ -30,6 +30,19 @@ const UpdateStatusModal = ({ isOpen, onClose, onUpdateStatus, job }) => {
                 updateData.paymentMethod = paymentMethod;
                 updateData.paymentStatus = 'pending';
             }
+
+            // Remove properties with undefined values
+            Object.keys(updateData).forEach(key => {
+                if (updateData[key] === undefined) {
+                    delete updateData[key];
+                }
+            });
+
+            if (!updateData.status) {
+                 alert('A valid status must be selected.');
+                 return;
+            }
+
             onUpdateStatus(job.id, updateData);
             onClose();
         }
