@@ -6,15 +6,9 @@ const UpdateStatusModal = ({ isOpen, onClose, onUpdateStatus, job }) => {
     const [paymentMethod, setPaymentMethod] = useState('Online Payment');
 
     useEffect(() => {
-        if (job?.status) {
-            setSelectedStatus(job.status);
-        }
-        if (job?.totalAmount) {
-            setAmount(job.totalAmount);
-        }
-        if (job?.paymentMethod) {
-            setPaymentMethod(job.paymentMethod);
-        }
+        setSelectedStatus(job?.status || '');
+        setAmount(job?.totalAmount || '');
+        setPaymentMethod(job?.paymentMethod || 'Online Payment');
     }, [job]);
 
     if (!isOpen || !job) {
@@ -70,6 +64,7 @@ const UpdateStatusModal = ({ isOpen, onClose, onUpdateStatus, job }) => {
                             value={selectedStatus}
                             onChange={(e) => setSelectedStatus(e.target.value)}
                         >
+                            <option value="" disabled>Select a status</option>
                             {statuses.map((status) => (
                                 <option key={status} value={status}>{status}</option>
                             ))}
