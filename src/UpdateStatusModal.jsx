@@ -1,14 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const UpdateStatusModal = ({ isOpen, onClose, onUpdateStatus, job }) => {
-    const [selectedStatus, setSelectedStatus] = useState(job?.status || '');
+    const [selectedStatus, setSelectedStatus] = useState('');
 
-    if (!isOpen) {
+    useEffect(() => {
+        if (job?.status) {
+            setSelectedStatus(job.status);
+        }
+    }, [job]);
+
+    if (!isOpen || !job) {
         return null;
     }
 
     const handleUpdate = () => {
-        if (selectedStatus && job) {
+        if (selectedStatus) {
             onUpdateStatus(job.id, job.userId, job.device, selectedStatus);
             onClose();
         }
@@ -17,36 +23,48 @@ const UpdateStatusModal = ({ isOpen, onClose, onUpdateStatus, job }) => {
     const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                <div className="mt-3 text-center">
-                    <h3 className="text-lg leading-6 font-medium text-black">Update Repair Status</h3>
-                    <div className="mt-2 px-7 py-3">
-                        <p className="text-sm text-black">
-                            Update the status for device "{job?.device}".
-                        </p>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+            <div className="relative mx-auto p-6 border w-full max-w-lg shadow-xl rounded-2xl bg-white">
+                <div className="text-center">
+                    <h3 className="text-2xl font-bold text-gray-900">Update Repair Status</h3>
+                    <div className="mt-4 space-y-4 text-left p-4 bg-gray-50 rounded-lg">
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Device</p>
+                            <p className="text-md font-semibold text-gray-800">{job.device}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Customer Phone</p>
+                            <p className="text-md font-semibold text-gray-800">{job.customerPhone || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Service Address</p>
+                            <p className="text-md font-semibold text-gray-800 whitespace-pre-wrap">{job.serviceAddress || 'N/A'}</p>
+                        </div>
+                    </div>
+                    <div className="mt-6">
+                        <label htmlFor="status-select" className="block text-sm font-medium text-gray-700 text-left mb-2">Select New Status</label>
                         <select
-                            className="mt-4 w-full p-2 border border-gray-300 rounded-md text-gray-700"
+                            id="status-select"
+                            className="w-full p-3 border border-gray-300 rounded-lg text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={selectedStatus}
                             onChange={(e) => setSelectedStatus(e.target.value)}
                         >
-                            <option value="" className="text-gray-700">Select Status</option>
                             {statuses.map((status) => (
-                                <option key={status} value={status} className="text-gray-700">{status}</option>
+                                <option key={status} value={status}>{status}</option>
                             ))}
                         </select>
                     </div>
-                    <div className="items-center px-4 py-3">
+                    <div className="mt-6 flex flex-col space-y-2">
                         <button
                             onClick={handleUpdate}
-                            disabled={!selectedStatus || selectedStatus === job?.status}
-                            className="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-300"
+                            disabled={!selectedStatus || selectedStatus === job.status}
+                            className="w-full px-4 py-3 bg-blue-600 text-white text-base font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                         >
                             Update Status
                         </button>
                         <button
                             onClick={onClose}
-                            className="mt-2 px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                            className="w-full px-4 py-3 bg-gray-200 text-gray-800 text-base font-semibold rounded-lg shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 transition-colors"
                         >
                             Cancel
                         </button>

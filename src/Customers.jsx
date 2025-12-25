@@ -134,10 +134,10 @@ const Customers = ({ users, repairs, handleDeleteUser }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {currentUsers.map(user => {
+              {currentUsers.map((user, index) => {
                 const stats = getRepairStats(user.uid);
                 return (
-                  <tr key={user.uid} className="hover:bg-gray-50 text-gray-800 cursor-pointer" onClick={() => navigate(`/user/${user.uid}`)}>
+                  <tr key={user.uid || index} className="hover:bg-gray-50 text-gray-800 cursor-pointer" onClick={() => navigate(`/user/${user.uid}`)}>
                     <td className="p-4 whitespace-nowrap font-medium">{user.fullName}</td>
                     <td className="p-4 whitespace-nowrap text-gray-600">{user.email}</td>
                     <td className="p-4 whitespace-nowrap text-center font-semibold">
