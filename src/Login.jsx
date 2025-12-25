@@ -10,16 +10,14 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(null);
   const navigate = useNavigate();
   const auth = getAuth();
 
   const handleLogin = async (event) => {
     event.preventDefault();
-    setError(null);
 
     if (!email || !password) {
-      setError('Please fill in all fields.');
+      toast.error('Please fill in all fields.');
       return;
     }
 
@@ -39,7 +37,7 @@ const Login = () => {
         navigate('/dashboard');
       }
     } catch (error) {
-      setError('Incorrect user ID/password');
+      toast.error('Incorrect user ID/password');
     }
   };
 
@@ -97,7 +95,6 @@ const Login = () => {
                 )}
               </div>
             </div>
-            {error && <p className="text-red-500 text-sm text-center mb-4">{error}</p>}
             <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg shadow-purple-500/50 text-base md:text-lg">LOGIN</button>
           </form>
           <p className="mt-6 text-center text-sm text-gray-400">

@@ -45,6 +45,35 @@ This document outlines the design, features, and implementation of the RepairDas
     *   A repair history table shows details of past and current repairs.
 *   **Styling:** Consistent dark theme with clear information hierarchy.
 
+### Notification System
+*   **Components:**
+    *   `Notification.jsx`: A floating notification panel that displays recent notifications.
+    *   `Notifications.jsx`: A full-page notification management interface.
+*   **Functionality:**
+    *   **Real-time Updates:** Real-time listeners (onSnapshot) for new notifications and unread counts.
+    *   **User-Specific Content:** Non-admin users only see their own notifications.
+    *   **Admin Capabilities:** Admins can view and manage all notifications, with a specific focus on new repair requests.
+    *   **Actions:** Support for marking individual notifications as read, marking all as read, deleting read notifications, and clearing all notifications.
+    *   **Confirmation Modals:** Integrated confirmation modals for bulk actions to prevent accidental data loss.
+*   **Permissions & Security:**
+    *   Firestore security rules updated to support role-based access control.
+    *   Resolved `FirebaseError: Missing or insufficient permissions` by simplifying rules and aligning client-side queries with the 10-get-call limit in Firestore batch operations.
+    *   Admins are explicitly targeted with notifications using a `userId: 'admin'` identifier.
+
+### Offers & Promotions
+*   **Admin Interface:** A dedicated section in the Admin Dashboard for managing promotions.
+*   **Functionality:**
+    *   Admins can create new promotions with a title, description, discount code, and an optional expiry date.
+    *   A modal form provides a user-friendly way to input promotion details.
+    *   All existing promotions are displayed in a list, showing their status (active/expired).
+    *   Admins have the ability to edit or delete promotions.
+*   **Firestore Integration:**
+    *   A new `promotions` collection is created in Firestore to store all promotion-related data.
+
+### Admin Dashboard Enhancements
+*   **Streamlined Notifications:** Admins now only receive notifications for new repair requests (`type: 'repair_request_new'`), reducing clutter from routine status updates.
+*   **Role-Aware Logic:** Navigation and data fetching are now fully aware of the user's role (admin vs. regular user).
+
 ### Bug Fixes & Refinements
 *   **Resolved 3D Model Error:** Replaced a broken 3D model link that was causing a "404 Not Found" error.
 *   **Fixed Console Errors:** Disabled unnecessary Augmented Reality (AR) features that were causing security errors in the browser console.

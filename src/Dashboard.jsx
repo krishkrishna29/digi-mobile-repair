@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc, updateDoc, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from './AuthContext';
@@ -17,7 +17,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   InformationCircleIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  MapPinIcon
 } from '@heroicons/react/24/solid';
 
 const menuItems = [
@@ -112,15 +113,61 @@ const MyRepairs = ({repairs}) => (
 const NewRepairRequest = ({ currentUser }) => {
     const [device, setDevice] = useState('');
     const [issue, setIssue] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [address, setAddress] = useState('');
+    const [locationCoordinates, setLocationCoordinates] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitStatus, setSubmitStatus] = useState(null);
 
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (currentUser) {
+                const userRef = doc(db, 'users', currentUser.uid);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    if (userData.phoneNumber) {
+                        setPhoneNumber(userData.phoneNumber);
+                    }
+                }
+            }
+        };
+        fetchUserData();
+    }, [currentUser]);
+
+    const handleFetchLocation = () => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                const { latitude, longitude } = position.coords;
+                setLocationCoordinates({ latitude, longitude });
+                // Simple reverse geocoding (doesn't require an API key for this basic functionality)
+                setAddress(`Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}`);
+            }, (error) => {
+                console.error("Error getting location: ", error);
+                setSubmitStatus({type: 'error', message: 'Could not fetch location.'})
+            });
+        } else {
+            setSubmitStatus({type: 'error', message: 'Geolocation is not supported by this browser.'})
+        }
+    };
+
+    const validatePhoneNumber = (number) => {
+        const phoneRegex = /^\d{10}$/;
+        return phoneRegex.test(number);
+    }
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!device || !issue) {
+        if (!device || !issue || !phoneNumber || !address) {
             setSubmitStatus({ type: 'error', message: 'Please fill out all fields.' });
             return;
         }
+
+        if(!validatePhoneNumber(phoneNumber)) {
+            setSubmitStatus({ type: 'error', message: 'Please enter a valid 10-digit phone number.' });
+            return;
+        }
+
         setIsSubmitting(true);
         setSubmitStatus(null);
 
@@ -131,7 +178,13 @@ const NewRepairRequest = ({ currentUser }) => {
                 userId: currentUser.uid,
                 status: 'Pending',
                 createdAt: serverTimestamp(),
+                customerPhone: phoneNumber,
+                serviceAddress: address,
+                locationCoordinates
             });
+
+            const userRef = doc(db, 'users', currentUser.uid);
+            await updateDoc(userRef, { phoneNumber: phoneNumber });
 
             await addDoc(collection(db, 'notifications'), {
                 userId: currentUser.uid,
@@ -145,6 +198,8 @@ const NewRepairRequest = ({ currentUser }) => {
 
             setDevice('');
             setIssue('');
+            setAddress('');
+            setLocationCoordinates(null);
             setSubmitStatus({ type: 'success', message: 'Your repair request has been submitted!' });
         } catch (error) {
             console.error("Error submitting request: ", error);
@@ -153,6 +208,8 @@ const NewRepairRequest = ({ currentUser }) => {
             setIsSubmitting(false);
         }
     };
+    
+    const isFormValid = device && issue && phoneNumber && address && validatePhoneNumber(phoneNumber);
 
     return (
         <div className="bg-slate-800 p-8 rounded-xl shadow-lg">
@@ -164,18 +221,31 @@ const NewRepairRequest = ({ currentUser }) => {
                         <input type="text" id="device" value={device} onChange={(e) => setDevice(e.target.value)} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <div className="col-span-2">
+                        <label htmlFor="phoneNumber" className="block text-sm font-medium text-slate-300 mb-2">Phone Number</label>
+                        <input type="tel" id="phoneNumber" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div className="col-span-2">
+                         <label htmlFor="address" className="block text-sm font-medium text-slate-300 mb-2">Detailed Address</label>
+                        <div className="relative">
+                            <textarea id="address" rows="3" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500 pr-12"></textarea>
+                            <button type="button" onClick={handleFetchLocation} className="absolute top-1/2 right-2 transform -translate-y-1/2 p-2 rounded-full hover:bg-slate-600">
+                                <MapPinIcon className="h-6 w-6 text-slate-400" />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="col-span-2">
                         <label htmlFor="issue" className="block text-sm font-medium text-slate-300 mb-2">Describe the Issue</label>
                         <textarea id="issue" rows="4" value={issue} onChange={(e) => setIssue(e.target.value)} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500"></textarea>
                     </div>
                 </div>
                 {submitStatus && (
                     <div className={`mt-4 text-sm p-3 rounded-lg flex items-center ${submitStatus.type === 'success' ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'}`}>
-                        {submitStatus.type === 'success' ? <CheckCircleIcon className="h-5 w-5 mr-2"/> : <XCircleIcon className="h-5 w-5 mr-2"/>}
+                        {submitStatus.type === 'success' ? <CheckCircleIcon className="h-5 w-5 mr-2"/> : <XCircleIcon className="h-5 w-5 mr-2" />}
                         {submitStatus.message}
                     </div>
                 )}
                 <div className="mt-6 text-right">
-                    <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 shadow-lg transform hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button type="submit" disabled={!isFormValid || isSubmitting} className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 shadow-lg transform hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed">
                         {isSubmitting ? 'Submitting...' : 'Submit Request'}
                     </button>
                 </div>
@@ -186,7 +256,7 @@ const NewRepairRequest = ({ currentUser }) => {
 
 
 function Dashboard() {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
   const [repairs, setRepairs] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [activeView, setActiveView] = useState('dashboard');
@@ -215,25 +285,37 @@ function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && !loading) {
         const qRepairs = query(collection(db, 'repairs'), where("userId", "==", currentUser.uid));
         const unsubscribeRepairs = onSnapshot(qRepairs, (snapshot) => {
             const repairsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setRepairs(repairsData);
+            const sortedRepairs = repairsData.sort((a, b) => {
+                const dateA = a.createdAt?.toDate() || 0;
+                const dateB = b.createdAt?.toDate() || 0;
+                return dateB - dateA;
+            });
+            setRepairs(sortedRepairs);
+        }, (error) => {
+            console.error("Error fetching repairs:", error);
         });
 
-        const qNotifications = query(collection(db, 'notifications'), where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+        const qNotifications = query(collection(db, 'notifications'), where("userId", "==", currentUser.uid));
         const unsubscribeNotifications = onSnapshot(qNotifications, (snapshot) => {
             const notificationsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setNotifications(notificationsData);
+            const sortedNotifications = notificationsData.sort((a, b) => {
+                const dateA = a.createdAt?.toDate() || 0;
+                const dateB = b.createdAt?.toDate() || 0;
+                return dateB - dateA;
+            });
+            setNotifications(sortedNotifications);
 
-            // This is a simple way to trigger a browser notification for new, unread messages
             snapshot.docChanges().forEach(change => {
                 if (change.type === 'added' && !change.doc.data().read) {
-                    // You might want to ask for permission first in a real app
                     // new Notification(change.doc.data().title, { body: change.doc.data().message });
                 }
             });
+        }, (error) => {
+            console.error("Error fetching notifications:", error);
         });
 
         return () => {
@@ -241,7 +323,7 @@ function Dashboard() {
             unsubscribeNotifications();
         };
     }
-  }, [currentUser]);
+  }, [currentUser, loading]);
 
   const handleSignOut = () => {
     signOut(auth).then(() => {
@@ -258,6 +340,14 @@ function Dashboard() {
   const pendingJobs = repairs.filter(r => r.status !== 'Completed').length;
 
   const renderContent = () => {
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-full">
+                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+            </div>
+        );
+    }
+
     switch (activeView) {
       case 'dashboard':
         return <DashboardContent {...{ repairs, pendingJobs, completedJobs }} />;

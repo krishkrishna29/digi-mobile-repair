@@ -5,13 +5,14 @@ import { ArrowLeftIcon, PencilIcon, EnvelopeIcon, PhoneIcon, MapPinIcon } from '
 const UserProfile = ({ users, repairs }) => {
   const { userId } = useParams();
   const navigate = useNavigate();
+  // Find user by the uid, which is passed in the URL, not necessarily the document id.
   const user = users.find(u => u.uid === userId);
   const userRepairs = repairs.filter(repair => repair.userId === userId);
 
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-2xl text-gray-500">User not found.</p>
+      <div className="flex items-center justify-center h-screen bg-gray-900 text-white">
+        <p className="text-2xl text-gray-400">User not found.</p>
       </div>
     );
   }

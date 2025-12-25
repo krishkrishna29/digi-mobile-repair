@@ -11,52 +11,57 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const auth = getAuth();
 
   const validate = () => {
-    const newErrors = {};
-
     if (!fullName.trim()) {
-      newErrors.fullName = 'Full Name is required.';
+      toast.error('Full Name is required.');
+      return false;
     } else if (fullName.trim().length < 3) {
-      newErrors.fullName = 'Full Name must be at least 3 characters long.';
+      toast.error('Full Name must be at least 3 characters long.');
+      return false;
     } else if (fullName.trim().length > 100) {
-      newErrors.fullName = 'Full Name cannot be more than 100 characters.';
+      toast.error('Full Name cannot be more than 100 characters.');
+      return false;
     } else if (!/^[a-zA-Z\s]*$/.test(fullName)) {
-      newErrors.fullName = 'Full Name must only contain letters and spaces.';
+      toast.error('Full Name must only contain letters and spaces.');
+      return false;
     }
 
     if (!email) {
-      newErrors.email = 'Email is required.';
+      toast.error('Email is required.');
+      return false;
     } else if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.com$/.test(email)) {
-      newErrors.email = 'Email address is invalid. It must be lowercase and end with .com';
+      toast.error('Email address is invalid. It must be lowercase and end with .com');
+      return false;
     }
 
     if (!password) {
-      newErrors.password = 'Password is required.';
+      toast.error('Password is required.');
+      return false;
     } else if (password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long.';
+      toast.error('Password must be at least 8 characters long.');
+      return false;
     } else if (!/(?=.*[A-Z])/.test(password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter.';
+      toast.error('Password must contain at least one uppercase letter.');
+      return false;
     } else if (!/(?=.*[0-9])/.test(password)) {
-      newErrors.password = 'Password must contain at least one number.';
+      toast.error('Password must contain at least one number.');
+      return false;
     } else if (!/(?=.*[!@#$%^&*])/.test(password)) {
-      newErrors.password = 'Password must contain at least one special character (!@#$%^&*).';
+      toast.error('Password must contain at least one special character (!@#$%^&*).');
+      return false;
     }
     
-    return newErrors;
+    return true;
   };
 
   const handleSignUp = async (event) => {
     event.preventDefault();
-    const validationErrors = validate();
-    if (Object.keys(validationErrors).length > 0) {
-      setErrors(validationErrors);
+    if (!validate()) {
       return;
     }
-    setErrors({});
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -70,9 +75,9 @@ export default function SignUp() {
       navigate('/dashboard');
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
-        setErrors({ email: 'Email address is already in use.' });
+        toast.error('Email address is already in use.');
       } else {
-        setErrors({ form: 'Incorrect user ID/password' });
+        toast.error('Incorrect user ID/password');
       }
     }
   };
@@ -107,14 +112,12 @@ export default function SignUp() {
                     <UserIcon className="h-5 w-5 text-gray-400 absolute top-1/2 -translate-y-1/2 left-4" />
                     <input type="text" placeholder="Enter your full name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base md:text-lg" />
                 </div>
-              {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
             <div className="mb-4">
               <div className="relative">
                 <EnvelopeIcon className="h-5 w-5 text-gray-400 absolute top-1/2 -translate-y-1/2 left-4"/>
                 <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base md:text-lg" />
               </div>
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
             <div className="mb-4">
                 <div className="relative">
@@ -128,9 +131,7 @@ export default function SignUp() {
                       )}
                     </div>
                 </div>
-              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
             </div>
-            {errors.form && <p className="text-red-500 text-sm text-center mb-4">{errors.form}</p>}
             <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg shadow-purple-500/50 text-base md:text-lg">SIGN UP</button>
             <p className="mt-6 text-center text-sm text-gray-400">
               Already have an account? {' '}

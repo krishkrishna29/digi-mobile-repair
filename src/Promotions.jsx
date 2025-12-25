@@ -1,81 +1,181 @@
-import React from 'react';
-import { PlusIcon, PencilIcon, TrashIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
+import { db } from './firebase';
+import { PlusIcon, PencilIcon, TrashIcon, XMarkIcon, CalendarIcon } from '@heroicons/react/24/outline';
 
-const promotionsData = [
-    {
-        title: 'Summer Screen Repair Sale',
-        description: 'Get 25% off on all screen repairs. Don\'t let a cracked screen ruin your summer!',
-        discount: '25%',
-        status: 'Active',
-        imageUrl: 'https://images.unsplash.com/photo-1583573636332-35633b586953?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    },
-    {
-        title: 'Battery Replacement Bonanza',
-        description: 'Is your battery draining too fast? Get a new one for 30% off!',
-        discount: '30%',
-        status: 'Active',
-        imageUrl: 'https://images.unsplash.com/photo-1614821594918-a8324424c3e8?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    },
-    {
-        title: 'Student Discount Days',
-        description: 'Show your student ID and get 15% off any repair service.',
-        discount: '15%',
-        status: 'Inactive',
-        imageUrl: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-    },
-];
+const PromotionModal = ({ isOpen, onClose, onSave, promotion }) => {
+    const [title, setTitle] = useState('');
+    const [description, setDescription] = useState('');
+    const [code, setCode] = useState('');
+    const [expiry, setExpiry] = useState('');
+
+    useEffect(() => {
+        if (promotion) {
+            setTitle(promotion.title || '');
+            setDescription(promotion.description || '');
+            setCode(promotion.code || '');
+            setExpiry(promotion.expiry ? promotion.expiry.toDate().toISOString().split('T')[0] : '');
+        } else {
+            setTitle('');
+            setDescription('');
+            setCode('');
+            setExpiry('');
+        }
+    }, [promotion]);
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onSave({ 
+            title,
+            description,
+            code,
+            expiry: expiry ? new Date(expiry) : null 
+        });
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+            <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-800">{promotion ? 'Edit' : 'Create'} Promotion</h2>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200">
+                        <XMarkIcon className="h-6 w-6 text-gray-600" />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
+                        <input type="text" id="title" value={title} onChange={e => setTitle(e.target.value)} required className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea id="description" value={description} onChange={e => setDescription(e.target.value)} rows="3" className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label htmlFor="code" className="block text-sm font-medium text-gray-700">Discount Code</label>
+                        <input type="text" id="code" value={code} onChange={e => setCode(e.target.value)} required className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                    <div>
+                        <label htmlFor="expiry" className="block text-sm font-medium text-gray-700">Expiry Date (Optional)</label>
+                        <div className="relative mt-1">
+                            <input type="date" id="expiry" value={expiry} onChange={e => setExpiry(e.target.value)} className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10" />
+                            <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                        </div>
+                    </div>
+                    <div className="flex justify-end pt-4 space-x-4">
+                        <button type="button" onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">Cancel</button>
+                        <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md">Save Promotion</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
 
 const Promotions = () => {
+    const [promotions, setPromotions] = useState([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [currentPromotion, setCurrentPromotion] = useState(null);
+
+    useEffect(() => {
+        const unsubscribe = onSnapshot(collection(db, 'promotions'), (snapshot) => {
+            const promoData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setPromotions(promoData);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const handleSave = async (promoData) => {
+        try {
+            if (currentPromotion) {
+                await updateDoc(doc(db, 'promotions', currentPromotion.id), { ...promoData, updatedAt: serverTimestamp() });
+            } else {
+                await addDoc(collection(db, 'promotions'), { ...promoData, createdAt: serverTimestamp() });
+            }
+            setIsModalOpen(false);
+            setCurrentPromotion(null);
+        } catch (error) {
+            console.error("Error saving promotion:", error);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        if (window.confirm("Are you sure you want to delete this promotion?")) {
+            try {
+                await deleteDoc(doc(db, 'promotions', id));
+            } catch (error) {
+                console.error("Error deleting promotion:", error);
+            }
+        }
+    };
+
+    const handleEdit = (promotion) => {
+        setCurrentPromotion(promotion);
+        setIsModalOpen(true);
+    };
+
+    const handleCreate = () => {
+        setCurrentPromotion(null);
+        setIsModalOpen(true);
+    };
+    
+    const isExpired = (expiry) => expiry && expiry.toDate() < new Date();
+
     return (
-        <div className="bg-gray-50 p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                <div>
-                    <h2 className="text-3xl font-bold text-gray-800">Offers & Promotions</h2>
-                    <p className="text-gray-600 mt-1">Create and manage special offers to attract more customers.</p>
-                </div>
-                <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 flex items-center shadow-lg transform hover:scale-105 transition-transform">
-                    <PlusIcon className="h-6 w-6 mr-2" />
-                    Create New Promotion
+        <div className="p-8 bg-gray-100 min-h-screen">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-gray-800">Offers & Promotions</h1>
+                <button onClick={handleCreate} className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700">
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Create Promotion
                 </button>
             </div>
 
-            <div className="mb-6">
-                <input 
-                    type="text" 
-                    placeholder="Search for promotions..." 
-                    className="w-full p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-                />
+            <div className="bg-white p-8 rounded-xl shadow-lg">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6">Active Promotions</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {promotions.filter(p => !isExpired(p.expiry)).map(promo => (
+                        <div key={promo.id} className="bg-gradient-to-tr from-blue-50 to-indigo-100 p-6 rounded-lg shadow-md relative">
+                            <div className="flex justify-between items-start">
+                                <h3 className="text-xl font-bold text-gray-900">{promo.title}</h3>
+                                <div className="flex space-x-2">
+                                    <button onClick={() => handleEdit(promo)} className="p-2 rounded-full hover:bg-white/50"><PencilIcon className="h-5 w-5 text-gray-600" /></button>
+                                    <button onClick={() => handleDelete(promo.id)} className="p-2 rounded-full hover:bg-white/50"><TrashIcon className="h-5 w-5 text-red-500" /></button>
+                                </div>
+                            </div>
+                            <p className="text-gray-600 mt-2">{promo.description}</p>
+                            <div className="mt-4 flex items-center justify-between">
+                                <p className="text-lg font-mono bg-gray-200 px-3 py-1 rounded-md text-gray-700">{promo.code}</p>
+                                <p className="text-sm text-gray-500">Expires: {promo.expiry ? promo.expiry.toDate().toLocaleDateString() : 'Never'}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {promotionsData.map((promo, index) => (
-                    <div key={index} className="bg-white rounded-xl shadow-2xl overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 ease-in-out group">
-                        <div className="relative">
-                            <img src={promo.imageUrl} alt={promo.title} className="w-full h-48 object-cover" />
-                            <div className={`absolute top-4 right-4 px-3 py-1 text-sm font-bold text-white rounded-full ${promo.status === 'Active' ? 'bg-green-500' : 'bg-gray-500'}`}>
-                                {promo.status}
+            <div className="bg-white p-8 rounded-xl shadow-lg mt-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6">Expired Promotions</h2>
+                <div className="space-y-4">
+                     {promotions.filter(p => isExpired(p.expiry)).map(promo => (
+                        <div key={promo.id} className="bg-gray-100 p-4 rounded-lg flex justify-between items-center">
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-500">{promo.title}</h3>
+                                <p className="text-gray-400 text-sm">Code: {promo.code}</p>
                             </div>
-                            <div className="absolute bottom-0 left-0 bg-gradient-to-t from-black to-transparent w-full p-4">
-                                <h3 className="text-2xl font-bold text-white shadow-lg">{promo.title}</h3>
-                            </div>
+                            <p className="text-sm text-gray-400">Expired on: {promo.expiry.toDate().toLocaleDateString()}</p>
                         </div>
-                        <div className="p-6">
-                            <p className="text-gray-700 mb-4">{promo.description}</p>
-                            <div className="flex justify-between items-center mb-4">
-                                <div className="text-3xl font-bold text-blue-600">{promo.discount} OFF</div>
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <button className="p-2 text-gray-500 hover:text-blue-600 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                                    <PencilIcon className="h-5 w-5" />
-                                </button>
-                                <button className="p-2 text-gray-500 hover:text-red-600 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors">
-                                    <TrashIcon className="h-5 w-5" />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
+
+            <PromotionModal 
+                isOpen={isModalOpen}
+                onClose={() => { setIsModalOpen(false); setCurrentPromotion(null); }}
+                onSave={handleSave}
+                promotion={currentPromotion}
+            />
         </div>
     );
 };

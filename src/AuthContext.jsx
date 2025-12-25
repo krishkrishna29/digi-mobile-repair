@@ -11,7 +11,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [userRole, setUserRole] = useState(null);
+  const [userRole, setUserRole] = useState('unauthenticated'); // Initialize to a default string
   const [loading, setLoading] = useState(true);
   const auth = getAuth();
 
@@ -21,18 +21,18 @@ export const AuthProvider = ({ children }) => {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           setCurrentUser(user);
-          setUserRole(userDoc.data().role);
+          setUserRole(userDoc.data().role || 'user'); // Default to 'user' if role is missing
         } else {
           // User exists in Auth, but not in Firestore.
           // This could be a manually deleted user.
           // Force a sign out.
           await signOut(auth);
           setCurrentUser(null);
-          setUserRole(null);
+          setUserRole('unauthenticated');
         }
       } else {
         setCurrentUser(null);
-        setUserRole(null);
+        setUserRole('unauthenticated');
       }
       setLoading(false);
     });

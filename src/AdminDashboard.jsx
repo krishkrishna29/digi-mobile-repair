@@ -348,13 +348,11 @@ function AdminDashboard({users, repairs, setUsers}) {
         snapshot.docChanges().forEach(async (change) => {
             if (change.type === 'added') {
                 const newRepair = { id: change.doc.id, ...change.doc.data() };
-                // Ensure we don't create multiple notifications for the same repair
-                // We'll use a type 'repair_request_new'
-                // This is just a basic implementation. Ideally, this should be handled by a Cloud Function.
-                // But for IDX/Studio purposes, we can do it here for now.
                 
                 // Add unread notification for Admin
+                // EXPLICITLY set userId to 'admin'
                 await addDoc(collection(db, 'notifications'), {
+                    userId: 'admin',
                     title: 'New Repair Request',
                     message: `A new repair request for "${newRepair.device}" has been submitted.`,
                     type: 'repair_request_new',
@@ -366,10 +364,12 @@ function AdminDashboard({users, repairs, setUsers}) {
         });
     });
     
-    // Listen to ALL unread notifications for the count
+    // Listen specifically for unread 'repair_request_new' notifications for admin
     const qNotifications = query(
         collection(db, 'notifications'),
-        where('read', '==', false)
+        where('userId', '==', 'admin'),
+        where('read', '==', false),
+        where('type', '==', 'repair_request_new')
     );
     const unsubscribeNotificationsCount = onSnapshot(qNotifications, (snapshot) => {
         setNewRequestCount(snapshot.size);
@@ -431,16 +431,7 @@ function AdminDashboard({users, repairs, setUsers}) {
     const repairRef = doc(db, 'repairs', jobId);
     await updateDoc(repairRef, { status: newStatus });
 
-    await addDoc(collection(db, 'notifications'), {
-        userId: userId,
-        type: 'info',
-        title: 'Repair Status Updated',
-        message: `The status of your repair for "${device}" is now "${newStatus}".`,
-        read: false,
-        createdAt: serverTimestamp(),
-        relatedRepairId: jobId,
-    });
-    setIsUpdateStatusModalOpen(false); // Close the status update modal after action
+    setIsUpdateStatusModalOpen(false);
     setJobToUpdateStatus(null);
   };
   
@@ -481,7 +472,6 @@ function AdminDashboard({users, repairs, setUsers}) {
   const handleNotificationClick = (notification) => {
       if (notification.relatedRepairId) {
           setActiveView('repair-jobs');
-          // Optional: Scroll to the job or highlight it
       }
   };
 
@@ -589,7 +579,6 @@ function AdminDashboard({users, repairs, setUsers}) {
                     {isNotificationsOpen && (
                         <div ref={notificationsMenuRef} className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl p-4 z-30">
                             <h3 className="text-lg font-bold text-gray-800">Recent Notifications</h3>
-                            {/* This is a simple list. Ideally, this should also fetch from Firestore like the Notification component */}
                             <p className="text-gray-600 mt-2">Check the floating icon for detailed notifications.</p>
                         </div>
                     )}
