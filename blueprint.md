@@ -89,3 +89,19 @@ This document outlines the design, features, and implementation of the RepairDas
     *   **Navigation:** The "Login" and "Sign Up" buttons in the header have been restyled to be more prominent and visually appealing, improving user guidance.
     *   **Authentication Forms:** The input fields on the Login and Sign Up pages have been enlarged and the form layout has been refined to improve usability and provide a more consistent user experience.
     *   **Visual Polish:** A subtle spinning animation was added to the logo icon in the header for a more dynamic feel.
+
+### Current Requested Change: Repair Jobs UI Improvement
+
+To make the "Repair Jobs" section clearer and easier to navigate, the following changes will be implemented:
+
+1.  **Status Filtering:** Added a filter mechanism to allow administrators to easily view repair jobs by their status (All, Pending, In Progress, Completed, Cancelled). This will be achieved by adding a set of interactive buttons above the repair jobs table.
+2.  **Enhanced Row Highlighting:** Implemented distinct background styling for rows in the "All Repair Jobs" table based on their status. This visual cue will help administrators quickly identify the state of each repair job. Pending and In Progress jobs will have a subtle background color to draw attention, while Completed jobs will have a neutral background.
+3.  **Refined Status Chips:** Ensured that the `getStatusChip` function provides clear and distinct visual indicators (colors and icons) for each repair status, making it easier to differentiate at a glance. 
+
+### Current Requested Change: User Dashboard Repair Request Submission Feedback Fix
+
+To address the issue where a repair request is successfully submitted but an error message is displayed, the `handleSubmit` function in `src/Dashboard.jsx` will be refactored:
+
+1.  The primary `addDoc` call for submitting the repair request will be isolated.
+2.  Immediately after a successful primary submission, the success status message will be set.
+3.  Subsequent actions, such as updating the user's phone number and sending notifications, will be wrapped in their own `try...catch` blocks. Any errors in these secondary actions will be logged to the console but will no longer prevent the primary success message from being displayed to the user for the repair request.
