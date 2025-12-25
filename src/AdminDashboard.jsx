@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, deleteDoc, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc, updateDoc, getDoc, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { signOut } from 'firebase/auth';
+import { useAuth } from './AuthContext';
 import {
   ChartBarSquareIcon,
   WrenchScrewdriverIcon,
@@ -26,6 +27,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   PencilIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/solid';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import Notification from './Notification';
@@ -114,6 +116,8 @@ const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick
                             <tr className="text-gray-500 font-semibold uppercase text-sm border-b border-gray-200">
                                 <th className="py-4 px-4">Customer</th>
                                 <th className="py-4 px-4">Device & Issue</th>
+                                <th className="py-4 px-4">Phone</th>
+                                <th className="py-4 px-4">Address</th>
                                 <th className="py-4 px-4">Submitted On</th>
                                 <th className="py-4 px-4">Status</th>
                                 <th className="py-4 px-4 text-center">Actions</th>
@@ -128,6 +132,13 @@ const RepairJobs = ({ repairs, users, onStatusChange, onDeleteJob, onAssignClick
     <td className="py-4 px-4 text-gray-600">
       <div>{job.device}</div>
       <div className='text-xs text-gray-400'>{job.issue}</div>
+    </td>
+    <td className="py-4 px-4 text-gray-600">
+      {users[job.userId]?.phoneNumber || 'N/A'}
+    </td>
+    <td className="py-4 px-4 text-gray-600 flex items-center">
+        {users[job.userId]?.address || 'N/A'}
+        {users[job.userId]?.address && <MapPinIcon className="h-5 w-5 ml-2 text-gray-500" />}
     </td>
     <td className="py-4 px-4 text-gray-600">
       {job.createdAt?.toDate().toLocaleDateString()}
@@ -344,26 +355,6 @@ function AdminDashboard({users, repairs, setUsers}) {
   }, []);
 
   useEffect(() => {
-    const unsubscribeRepairs = onSnapshot(collection(db, 'repairs'), (snapshot) => {
-        snapshot.docChanges().forEach(async (change) => {
-            if (change.type === 'added') {
-                const newRepair = { id: change.doc.id, ...change.doc.data() };
-                
-                // Add unread notification for Admin
-                // EXPLICITLY set userId to 'admin'
-                await addDoc(collection(db, 'notifications'), {
-                    userId: 'admin',
-                    title: 'New Repair Request',
-                    message: `A new repair request for "${newRepair.device}" has been submitted.`,
-                    type: 'repair_request_new',
-                    read: false,
-                    createdAt: serverTimestamp(),
-                    relatedRepairId: newRepair.id
-                });
-            }
-        });
-    });
-    
     // Listen specifically for unread 'repair_request_new' notifications for admin
     const qNotifications = query(
         collection(db, 'notifications'),
@@ -385,7 +376,6 @@ function AdminDashboard({users, repairs, setUsers}) {
     });
 
     return () => {
-        unsubscribeRepairs();
         unsubscribeNotificationsCount();
         unsubscribeTechnicians();
     };
@@ -606,8 +596,7 @@ function AdminDashboard({users, repairs, setUsers}) {
         </main>
 
         <Notification 
-            newRequestCount={newRequestCount} 
-            onClear={clearNewRequests} 
+            onViewAll={() => setActiveView('notifications')}
             onNotificationClick={handleNotificationClick}
         />
       </div>

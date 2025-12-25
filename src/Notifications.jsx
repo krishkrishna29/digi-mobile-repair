@@ -18,13 +18,14 @@ const getNotificationIcon = (type) => {
     const iconClasses = "h-8 w-8";
     switch (type) {
         case 'success':
-        case 'repair_request_new':
+        case 'repair_request_new': // Keep this for repair request notifications
             return <CheckCircleIcon className={`${iconClasses} text-green-500`} />;
         case 'warning':
             return <ExclamationTriangleIcon className={`${iconClasses} text-yellow-500`} />;
         case 'info':
             return <InformationCircleIcon className={`${iconClasses} text-blue-500`} />;
         case 'error':
+        case 'cancelled': // Added for cancelled status consistency
             return <XCircleIcon className={`${iconClasses} text-red-500`} />;
         default:
             return <BellIcon className={`${iconClasses} text-gray-500`} />;
@@ -161,7 +162,13 @@ const Notifications = () => {
     const filteredNotifications = notifications.filter(n => {
         if (filter === 'All') return true;
         if (filter === 'Unread') return !n.read;
-        return n.type && n.type.toLowerCase().replace(/_/g, " ").includes(filter.toLowerCase().replace(/_/g, " "));
+        // Modified to handle specific notification types as exact matches for filter tabs
+        if (filter === 'New Request') return n.type === 'repair_request_new';
+        if (filter === 'Info') return n.type === 'info';
+        if (filter === 'Success') return n.type === 'success';
+        if (filter === 'Warning') return n.type === 'warning';
+        if (filter === 'Error') return n.type === 'error';
+        return false;
     });
 
     const filterTabs = ['All', 'Unread', 'New Request', 'Info', 'Success', 'Warning', 'Error'];

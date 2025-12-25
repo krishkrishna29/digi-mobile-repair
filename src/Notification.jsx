@@ -31,9 +31,8 @@ function Notification({ onNotificationClick, onViewAll }) {
     const [isLoading, setIsLoading] = useState(false);
 
     const getTargetUserId = () => {
-        // Admins specifically look for 'admin' notifications
         if (userRole === 'admin') return 'admin';
-        return currentUser.uid;
+        return currentUser?.uid;
     }
 
     const buildQuery = (conditions = []) => {
@@ -45,24 +44,7 @@ function Notification({ onNotificationClick, onViewAll }) {
         return baseQuery;
     }
 
-    useEffect(() => {
-        if (!isOpen || !currentUser) return;
-
-        setIsLoading(true);
-        const q = query(buildQuery(), orderBy('createdAt', 'desc'), limit(10));
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const fetchedNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setNotifications(fetchedNotifications);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching notifications: ", error);
-            setIsLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, [isOpen, currentUser, userRole]);
-
+    // Always listen for unread count
     useEffect(() => {
         if (!currentUser) return;
 
@@ -72,6 +54,26 @@ function Notification({ onNotificationClick, onViewAll }) {
             setUnreadCount(snapshot.size);
         }, (error) => {
             console.error("Error fetching unread count:", error);
+        });
+
+        return () => unsubscribe();
+    }, [currentUser, userRole]);
+
+    // Listen for the list of notifications (limited to 10)
+    useEffect(() => {
+        if (!currentUser) return;
+
+        setIsLoading(true);
+        // We listen even if not open to keep the data fresh
+        const q = query(buildQuery(), orderBy('createdAt', 'desc'), limit(10));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setNotifications(fetchedNotifications);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching notifications: ", error);
+            setIsLoading(false);
         });
 
         return () => unsubscribe();

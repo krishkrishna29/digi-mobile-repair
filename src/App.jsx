@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { onSnapshot, collection, query } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from './AuthContext';
 import Home from './pages/Home';
+import About from './pages/About';
 import Login from './Login';
 import Signup from './SignUp';
 import Dashboard from './Dashboard';
@@ -17,6 +18,7 @@ const App = () => {
   const [users, setUsers] = useState({});
   const [repairs, setRepairs] = useState([]);
   const { currentUser, userRole } = useAuth();
+  const location = useLocation();
 
   useEffect(() => {
     if (userRole === 'admin') {
@@ -38,11 +40,16 @@ const App = () => {
     }
   }, [userRole]);
 
+  // Define paths where navigation should be visible
+  const showNavPaths = ['/', '/about', '/login', '/signup'];
+  const shouldShowNav = showNavPaths.includes(location.pathname);
+
   return (
     <>
-      <Navigation />
+      {shouldShowNav && <Navigation />}
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/about" element={<About />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/dashboard" element={<Dashboard repairs={repairs} />} />

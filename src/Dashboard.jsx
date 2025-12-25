@@ -140,11 +140,30 @@ const NewRepairRequest = ({ currentUser }) => {
             navigator.geolocation.getCurrentPosition((position) => {
                 const { latitude, longitude } = position.coords;
                 setLocationCoordinates({ latitude, longitude });
-                // Simple reverse geocoding (doesn't require an API key for this basic functionality)
                 setAddress(`Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}`);
+                setSubmitStatus(null);
             }, (error) => {
-                console.error("Error getting location: ", error);
-                setSubmitStatus({type: 'error', message: 'Could not fetch location.'})
+                let errorMsg = 'Could not fetch location.';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMsg = "Location permission denied. Please enable it in your browser settings.";
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMsg = "Location information is unavailable.";
+                        break;
+                    case error.TIMEOUT:
+                        errorMsg = "The request to get user location timed out.";
+                        break;
+                    case error.UNKNOWN_ERROR:
+                        errorMsg = "An unknown error occurred while fetching location.";
+                        break;
+                }
+                console.error("Error getting location: ", errorMsg, error);
+                setSubmitStatus({type: 'error', message: errorMsg})
+            }, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
             });
         } else {
             setSubmitStatus({type: 'error', message: 'Geolocation is not supported by this browser.'})
@@ -186,11 +205,23 @@ const NewRepairRequest = ({ currentUser }) => {
             const userRef = doc(db, 'users', currentUser.uid);
             await updateDoc(userRef, { phoneNumber: phoneNumber });
 
+            // Notification for the User
             await addDoc(collection(db, 'notifications'), {
                 userId: currentUser.uid,
                 type: 'info',
                 title: 'Repair Request Submitted',
                 message: `Your request for "${device}" has been received.`,
+                read: false,
+                createdAt: serverTimestamp(),
+                relatedRepairId: newRepairRef.id,
+            });
+
+            // Notification for the Admin
+            await addDoc(collection(db, 'notifications'), {
+                userId: 'admin',
+                type: 'repair_request_new',
+                title: 'New Repair Request',
+                message: `A new repair request for "${device}" has been submitted by ${currentUser.displayName || 'a user'}.`,
                 read: false,
                 createdAt: serverTimestamp(),
                 relatedRepairId: newRepairRef.id,
@@ -228,7 +259,7 @@ const NewRepairRequest = ({ currentUser }) => {
                          <label htmlFor="address" className="block text-sm font-medium text-slate-300 mb-2">Detailed Address</label>
                         <div className="relative">
                             <textarea id="address" rows="3" value={address} onChange={(e) => setAddress(e.target.value)} className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-blue-500 focus:border-blue-500 pr-12"></textarea>
-                            <button type="button" onClick={handleFetchLocation} className="absolute top-1/2 right-2 transform -translate-y-1/2 p-2 rounded-full hover:bg-slate-600">
+                            <button type="button" onClick={handleFetchLocation} className="absolute top-1/2 right-2 transform -translate-y-1/2 p-2 rounded-full hover:bg-slate-600" title="Fetch current location">
                                 <MapPinIcon className="h-6 w-6 text-slate-400" />
                             </button>
                         </div>
