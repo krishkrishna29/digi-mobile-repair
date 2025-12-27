@@ -81,8 +81,7 @@ const NewRepairRequest = () => {
         }
 
         try {
-            // Create new repair document
-            const repairRef = await addDoc(collection(db, 'repairs'), {
+            const repairDocRef = await addDoc(collection(db, 'repairs'), {
                 userId: currentUser.uid,
                 repairMode,
                 deviceBrand,
@@ -99,17 +98,16 @@ const NewRepairRequest = () => {
                 statusHistory: [{ status: 'Requested', timestamp: new Date() }],
             });
 
-            // Create admin notification
             await addDoc(collection(db, 'admin_notifications'), {
                 type: 'repair_request_new',
                 title: 'New Repair Request',
                 message: `A new repair for a ${deviceBrand} ${deviceModel} has been submitted.`,
                 read: false,
                 createdAt: serverTimestamp(),
-                relatedRepairId: repairRef.id
+                relatedRepairId: repairDocRef.id
             });
 
-            navigate('/confirmation', { state: { repairId: repairRef.id, repairMode, otp } });
+            navigate('/confirmation', { state: { repairId: repairDocRef.id, repairMode, otp } });
 
         } catch (error) {
             console.error("Error submitting request: ", error);

@@ -69,6 +69,7 @@ const Navigation = () => {
   const mainNavLinks = [
     { to: '/', text: 'Home' },
     { to: '/about', text: 'About Us' },
+    { to: '/services', text: 'Services' },
     { to: '/promotions', text: 'Promotions', icon: hasActivePromotions && <SparklesIcon className="inline-block w-4 h-4 ml-1 text-yellow-400 animate-pulse" /> },
   ];
 

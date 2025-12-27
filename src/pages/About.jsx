@@ -52,7 +52,7 @@ const AboutUs = () => {
         {/* Meet the Team Section */}
         <div className="text-center mb-24">
             <h2 className="text-4xl font-bold mb-16 flex items-center justify-center"><UsersIcon className="h-10 w-10 mr-4 text-blue-400"/>Meet Our Experts</h2>
-            <div className="flex flex-wrap justify-center gap-12 lg:gap-20">
+            <div className="flex flex-wrap justify-center gap-x-8 gap-y-12 lg:gap-x-20">
                 {[
                     { name: "Mr.Shashank", role: "Developer and Designer", img: "/Shashank.jpeg" },
                     { name: "Mr.Krishna", role: "Developer and Designer", img: "/Krishna.jpeg" },

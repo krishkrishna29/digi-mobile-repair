@@ -6,15 +6,16 @@ This document outlines the architecture, features, and implementation plan for t
 
 The application is a comprehensive platform for managing mobile device repairs, connecting customers with repair technicians and administrative staff.
 
-*   **User-Facing:** Customers can submit new repair requests, track the status of existing repairs, and communicate with support.
-*   **Admin-Facing:** Administrators have a full dashboard to manage incoming requests, assign jobs to technicians, update repair statuses, and oversee the entire workflow.
+*   **User-Facing:** Customers can submit new repair requests, track the status of existing repairs, view promotions, and learn about the company.
+*   **Admin-Facing:** Administrators have a full dashboard to manage incoming requests, assign jobs to technicians, update repair statuses, and manage promotional offers.
 
 ## 2. Implemented Features & Design
 
 ### UI/UX & Styling
 *   **Theme:** A modern, dark theme using a slate color palette for a professional and visually comfortable experience.
-*   **Layout:** Responsive and clean, focusing on clarity and ease of use for both mobile and desktop users.
-*   **Components:** Utilizes modern UI components with clear visual hierarchy, including interactive forms, modals, and status timelines.
+*   **Layout:** Fully responsive and clean, focusing on clarity and ease of use for both mobile and desktop users.
+*   **Components:** Utilizes modern UI components with clear visual hierarchy, including interactive forms, modals, status timelines, and responsive cards.
+*   **Branding:** Consistent branding with a logo and color scheme applied throughout the application.
 
 ### User Authentication
 *   **Firebase Authentication:** Secure email/password and phone (OTP) authentication flows.
@@ -30,56 +31,21 @@ The application is a comprehensive platform for managing mobile device repairs, 
 *   **Admin Dashboard:** A central hub for viewing all repair requests, sorted and searchable.
 *   **Job Assignment:** Admins can assign specific repair jobs to available technicians.
 *   **Status Updates:** Admins can update the status of any repair, which notifies the user in real-time.
-*   **Customer & Technician Management:** (Future) Sections for managing user and technician profiles.
 
 ### Offers & Promotions
-*   **Admin Interface:** A dedicated section in the Admin Dashboard for managing promotions.
-*   **Functionality:**
-    *   Admins can create new promotions with a title, description, discount code, and an optional expiry date.
-    *   A modal form provides a user-friendly way to input promotion details.
-    *   All existing promotions are displayed in a list, showing their status (active/expired).
-    *   Admins have the ability to edit or delete promotions.
-*   **Firestore Integration:**
-    *   A new `promotions` collection is created in Firestore to store all promotion-related data.
+*   **Admin Interface:** A dedicated section in the Admin Dashboard for creating, editing, and deleting promotions.
+*   **User-Facing Page:** A dedicated `/promotions` page displays all active offers to users.
+*   **Real-time Updates:** The promotions page updates in real-time based on data from Firestore, hiding expired offers automatically.
 
-### Admin Dashboard Enhancements
-*   **Streamlined Notifications:** Admins now only receive notifications for new repair requests (`type: 'repair_request_new'`), reducing clutter from routine status updates.
-*   **Role-Aware Logic:** Navigation and data fetching are now fully aware of the user's role (admin vs. regular user).
+### Responsive Design Enhancements
+*   **Goal:** To ensure a consistent and optimal viewing experience across all devices, from mobile phones to desktops.
+*   **Home Page (`Home.jsx`):** Adjusted the hero section text alignment and button layout for better mobile readability. The "Our Services" and "Why Us" sections now use a responsive grid that stacks vertically on smaller screens.
+*   **Services Page (`pages/Services.jsx`):** Created and populated the page with service details, implementing a responsive grid layout for the service cards.
+*   **About Page (`pages/About.jsx`):** Fine-tuned spacing in the "Meet the Team" section to prevent crowding on smaller viewports.
+*   **Promotions Page (`PromotionsPage.jsx`):** Created a new page to display active promotions, designed with a responsive grid to ensure offer cards display correctly on all screen sizes.
+*   **Navigation (`Navigation.jsx` & `App.jsx`):** Added a "Services" link to the main navigation. Ensured the mobile (hamburger) menu and desktop navigation are fully responsive and consistent.
 
-### New Repair Request Form Features
-*   **In-Store vs. Home Pickup:** A toggle switch allows users to select their preferred repair mode.
-*   **Conditional Fields:** The form dynamically shows and hides fields based on the selected mode (e.g., address fields for home pickup).
-*   **Geolocation:** For home pickups, users can share their current location with a single click to generate a Google Maps URL.
+## 3. Next Steps
 
-## 3. Current Task: Advanced Time Slot Booking System
-
-This task implements a shared and robust time slot booking system for repair drop-offs.
-
-### Logic Flow & Requirements
-*   **Data Source:** A new `timeSlots` collection in Firestore will store daily slot availability.
-*   **Working Hours:** Slots will be generated from 10:00 AM to 7:00 PM.
-*   **Interval:** Each slot will be 30 minutes.
-*   **No Past Slots:** The system will automatically prevent booking of slots that are in the past.
-*   **No Double Booking:** A slot cannot be booked if it has reached its maximum capacity.
-*   **Shared Data:** Both users and admins will see the same availability data in real-time.
-
-### Firestore Data Structure
-*   **Collection:** `timeSlots`
-*   **Document ID:** A unique ID for each slot (e.g., `2024-08-01_10:30`).
-*   **Fields:**
-    *   `timestamp` (Firestore Timestamp): The exact start time of the slot.
-    *   `capacity` (Number): The maximum number of bookings allowed for this slot (e.g., 2).
-    *   `booked` (Number): The current number of bookings for this slot.
-
-### React Implementation (`TimeSlotPicker.jsx`)
-*   **Admin View (`isAdmin` prop = `true`):**
-    *   The component will display ALL time slots for a given day.
-    *   Each slot will show its status (e.g., "1/2 Booked", "Full").
-    *   Admins can select any slot, even if full, to override or adjust bookings.
-*   **User View (`isAdmin` prop = `false`):**
-    *   The component will ONLY display available slots.
-    *   Past slots and full slots will be hidden and disabled.
-
-### Firestore Security Rules
-*   **Read:** All authenticated users will have read-only access to the `timeSlots` collection to check availability.
-*   **Update:** Only authenticated users can update a time slot document, and the update is restricted to only allow incrementing the `booked` count by 1. This prevents malicious updates. Admins will have full write access.
+*   **Final Testing:** Conduct a comprehensive review of the application to ensure all features are working correctly.
+*   **Deployment:** Deploy the application to Firebase Hosting.

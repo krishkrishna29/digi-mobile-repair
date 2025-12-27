@@ -5,7 +5,7 @@ const Footer = () => {
   return (
     <footer className="bg-gray-800 text-white py-12">
       <div className="container mx-auto px-6 md:px-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
           <div>
             <h3 className="text-xl font-bold mb-4">Venus Repair and Services</h3>
             <p className="text-gray-400">Your one-stop solution for all mobile repair needs.</p>
@@ -18,7 +18,7 @@ const Footer = () => {
           </div>
           <div>
             <h3 className="text-xl font-bold mb-4">Follow Us</h3>
-            <div className="flex space-x-4">
+            <div className="flex space-x-4 justify-center md:justify-start">
               <a href="#" className="text-gray-400 hover:text-white"><FaFacebook size={24} /></a>
               <a href="#" className="text-gray-400 hover:text-white"><FaTwitter size={24} /></a>
               <a href="#" className="text-gray-400 hover:text-white"><FaInstagram size={24} /></a>

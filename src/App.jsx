@@ -15,6 +15,7 @@ import OTPVerification from "./OTPVerification";
 // Pages
 import Home from "./pages/Home";
 import About from "./pages/About";
+import Services from "./pages/Services";
 import Login from "./Login";
 import Signup from "./SignUp";
 import UserDashboard from "./UserDashboard";
@@ -78,7 +79,7 @@ const App = () => {
     }
   }, [userProfile, loading, location.pathname, navigate]);
 
-  const showNavPaths = ["/", "/about", "/login", "/signup", "/promotions"];
+  const showNavPaths = ["/", "/about", "/services", "/login", "/signup", "/promotions"];
   const shouldShowNav = showNavPaths.includes(location.pathname);
 
   if (loading) {
@@ -92,6 +93,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
+        <Route path="/services" element={<Services />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/promotions" element={<PromotionsPage />} />
