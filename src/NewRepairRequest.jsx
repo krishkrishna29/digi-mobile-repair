@@ -127,7 +127,7 @@ const NewRepairRequest = () => {
                     status: 'Requested',
                     createdAt: serverTimestamp(),
                     otp: otp,
-                    statusHistory: [{ status: 'Requested', timestamp: serverTimestamp() }],
+                    statusHistory: [{ status: 'Requested', timestamp: new Date() }],
                 };
                 transaction.set(repairRef, repairData);
 

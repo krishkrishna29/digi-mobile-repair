@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 import RepairStatusTimeline from './RepairStatusTimeline';
-import Chat from './Chat'; // Import the Chat component
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
 
 const getStatusChip = (status) => {
@@ -93,7 +92,7 @@ const UserRepairs = ({ repairs, onPayNow }) => {
                                                 Pay Now
                                             </button>
                                         )}
-                                        <button onClick={() => handleToggleDetails(repair.id)} className="ml-4 inline-flex items-center">
+                                        <button onClick={() => handleToggleDetails(repair.id)} className="ml-4 inline-flex items-center text-gray-400 hover:text-white transition-colors">
                                             {selectedRepairId === repair.id ? <ChevronUpIcon className="h-5 w-5"/> : <ChevronDownIcon className="h-5 w-5"/>}
                                         </button>
                                     </td>
@@ -122,7 +121,6 @@ const UserRepairs = ({ repairs, onPayNow }) => {
                                                     </div>
                                                 </div>
                                             )}
-                                            <Chat repairId={repair.id} />
                                         </td>
                                     </tr>
                                 )}

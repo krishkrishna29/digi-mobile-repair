@@ -295,7 +295,7 @@ function AdminDashboard({users, repairs, setUsers}) {
 
   const handleStatusChange = async (job, updateData) => {
     try {
-        if (!updateData || typeof updateData !== 'object') return;
+        if (!job || !updateData || typeof updateData !== 'object') return;
         
         const repairRef = doc(db, 'repairs', job.id);
         await updateDoc(repairRef, updateData);
@@ -461,7 +461,7 @@ function AdminDashboard({users, repairs, setUsers}) {
       />
       <ConfirmationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={confirmDelete} title={jobToDelete ? "Delete Job" : "Delete User"} message={jobToDelete ? "Are you sure you want to delete this job?" : "Are you sure you want to delete this user?"}/>
       <AssignJobModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} onAssign={handleAssignJob} technicians={technicians} job={jobToAssign}/>
-      <UpdateStatusModal isOpen={isUpdateStatusModalOpen} onClose={() => setIsUpdateStatusModalOpen(false)} onUpdateStatus={(updateData) => handleStatusChange(jobToUpdateStatus, updateData)} job={jobToUpdateStatus}/>
+      <UpdateStatusModal isOpen={isUpdateStatusModalOpen} onClose={() => setIsUpdateStatusModalOpen(false)} onUpdateStatus={handleStatusChange} job={jobToUpdateStatus}/>
     </>
   );
 }
