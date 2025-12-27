@@ -5,15 +5,9 @@ import { AuthProvider } from './AuthContext.jsx';
 import App from './App';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
-import { clearIndexedDbPersistence } from 'firebase/firestore';
-import { db } from './firebase';
 
-// Clear Firestore IndexedDB persistence to solve potential corruption issues.
-clearIndexedDbPersistence(db).then(() => {
-  console.log("Cleared Firestore IndexedDB persistence.");
-}).catch(err => {
-  console.error("Could not clear Firestore IndexedDB persistence:", err);
-});
+// Removed clearIndexedDbPersistence as it can cause assertion errors 
+// if called improperly during the initialization lifecycle.
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

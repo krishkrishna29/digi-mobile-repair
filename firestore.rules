@@ -10,92 +10,66 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function getUserData() {
-      // This function makes a 'get' call. It should NOT be used in 'list' rules.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
+    // SAFE admin check (NO get(), NO exists())
     function isAdmin() {
-      // This function makes 'exists' and 'get' calls. It should NOT be used in 'list' rules.
-      return isAuth()
-        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
-        && getUserData().role == 'admin';
-    }
-
-    // Checks if the requesting user is the owner via the document's 'userId' field.
-    // Safe for read, get, update, delete.
-    function isOwnerByData() {
-        return isAuth() && resource.data.userId == request.auth.uid;
+      return isAuth() && request.auth.token.admin == true;
     }
 
     /* =========================
        USERS
-       - A user can only 'get' their own document.
-       - Listing all users is restricted to admins to protect user privacy.
     ========================== */
     match /users/{userId} {
-      // 🛑 CRITICAL: Listing all users is a security risk. Only admins can do it.
-      // Your frontend MUST use a direct 'get' for the user profile. See section 2.
-      allow list: if isAdmin();
-      
-      // A user can get their own document, and admins can get any document.
-      // This is safe for doc('users', uid).onSnapshot().
+      allow list: if isAuth() && isAdmin();
       allow get: if isAuth() && (request.auth.uid == userId || isAdmin());
-      
-      // Any authenticated user can create their own user document.
       allow create: if isAuth();
-      
-      // A user can only update their own document. Admins can update any.
       allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
-      
-      // Only admins can delete user documents.
       allow delete: if isAdmin();
     }
 
     /* =========================
-       REPAIRS (SNAPSHOT SAFE)
+       REPAIRS
     ========================== */
     match /repairs/{repairId} {
-      // ✅ FIX: Any authenticated user can query the collection.
-      // This is required for onSnapshot on queries to work.
-      // The client MUST filter these results (e.g., where('userId', '==', currentUser.uid)).
-      allow list, read: if isAuth();
+      // REQUIRED for queries + onSnapshot
+      allow read: if isAuth();
 
       allow create: if isAuth();
 
-      // ✅ SECURE: Modification is still protected. Only the owner or an admin can change/delete it.
-      allow update, delete: if isOwnerByData() || isAdmin();
+      allow update, delete: if isAuth() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
 
       match /messages/{messageId} {
-        allow read, list, create: if isAuth() && (
-          get(/databases/$(database)/documents/repairs/$(repairId)).data.userId == request.auth.uid || isAdmin()
-        );
+        allow read, create: if isAuth();
       }
     }
 
     /* =========================
-       NOTIFICATIONS (SNAPSHOT SAFE)
+       NOTIFICATIONS
     ========================== */
     match /notifications/{notificationId} {
-      // ✅ FIX: Follows the same pattern as repairs for snapshot safety.
-      // The client is responsible for querying only for its own notifications.
-      allow list, read: if isAuth();
+      // REQUIRED for onSnapshot queries
+      allow read: if isAuth();
 
       allow create: if isAuth();
-      
-      // ✅ SECURE: Only the user the notification is for, or an admin, can update/delete it.
-      // This handles notifications for specific users AND general admin notifications.
-      allow update, delete: if isOwnerByData() || (resource.data.userId == 'admin' && isAdmin());
+
+      allow update, delete: if isAuth() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    /* =========================
+       INVENTORY
+    ========================== */
     match /inventory/{itemId} {
-        allow read, list: if isAuth();
-        allow write, create, delete: if isAdmin();
+      allow read: if isAuth();
+      allow create, update, delete: if isAdmin();
     }
 
+    /* =========================
+       PROMOTIONS
+    ========================== */
     match /promotions/{promotionId} {
-      allow read, list: if true;
-      allow write, create, delete: if isAdmin();
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
   }
 }

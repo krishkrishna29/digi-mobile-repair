@@ -28,12 +28,12 @@ export const AuthProvider = ({ children }) => {
             } else {
                 console.log("No user profile found in Firestore for UID:", user.uid);
                 // Handle case where user exists in auth but not in firestore
-                setUserProfile({ uid: user.uid, email: user.email }); 
+                setUserProfile({ uid: user.uid, email: user.email, role: 'user' }); // Set a default role
             }
         } catch (error) {
             console.error("Error fetching user profile:", error);
             // Set a basic profile to avoid full app failure
-            setUserProfile({ uid: user.uid, email: user.email }); 
+            setUserProfile({ uid: user.uid, email: user.email, role: 'user' }); // Set a default role
         } finally {
             setLoading(false);
         }

@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from './AuthContext';
 
 export const useNotifications = () => {
-    const { currentUser, userRole } = useAuth();
+    const { currentUser, userProfile, loading: authLoading } = useAuth(); // Destructure userProfile and authLoading
     const [notifications, setNotifications] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (!currentUser) {
+        // Only proceed if auth is not loading and userProfile is available
+        if (authLoading || !currentUser || !userProfile) {
             setIsLoading(false);
             setNotifications([]);
             return;
@@ -17,7 +18,7 @@ export const useNotifications = () => {
 
         const notificationsQuery = query(
             collection(db, 'notifications'),
-            where('userId', '==', userRole === 'admin' ? 'admin' : currentUser.uid),
+            where('userId', '==', userProfile.role === 'admin' ? 'admin' : currentUser.uid), // Use userProfile.role directly
             orderBy('createdAt', 'desc')
         );
 
@@ -38,7 +39,7 @@ export const useNotifications = () => {
         );
 
         return () => unsubscribe();
-    }, [currentUser, userRole]);
+    }, [currentUser, userProfile, authLoading]); // Add userProfile and authLoading to dependencies
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
