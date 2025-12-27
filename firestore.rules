@@ -69,29 +69,7 @@ service cloud.firestore {
     }
 
     // =========================
-    // TIME SLOTS
-    // =========================
-    match /timeSlots/{slotId} {
-      allow read: if isAuth();
-      allow write: if isAdmin() || (isAuth() && (
-        // Create: The document does not exist, and the new data is valid.
-        (!exists(/databases/$(database)/documents/timeSlots/$(slotId)) &&
-          request.resource.data.booked == 1 &&
-          request.resource.data.keys().hasAll(['booked', 'capacity', 'timestamp'])
-        ) ||
-        // Update: The document exists, and the update is valid.
-        (exists(/databases/$(database)/documents/timeSlots/$(slotId)) &&
-          request.resource.data.booked == resource.data.booked + 1 &&
-          request.resource.data.booked <= resource.data.capacity &&
-          // Ensure other important fields are not changed by the user
-          request.resource.data.capacity == resource.data.capacity &&
-          request.resource.data.timestamp == resource.data.timestamp
-        )
-      ));
-    }
-    
-    // =========================
-    // OTHER ADMIN COLLECTIONS
+    // ADMIN-ONLY COLLECTIONS
     // =========================
     match /inventory/{itemId} {
       allow read, write, create, delete: if isAdmin();
@@ -99,6 +77,10 @@ service cloud.firestore {
     
     match /promotions/{promotionId} {
       allow read, write, create, delete: if isAdmin();
+    }
+
+    match /timeSlots/{slotId} {
+        allow read, write, create, delete: if isAdmin();
     }
   }
 }
