@@ -6,9 +6,11 @@ const UpdateStatusModal = ({ isOpen, onClose, onUpdateStatus, job }) => {
     const [paymentMethod, setPaymentMethod] = useState('Online Payment');
 
     useEffect(() => {
-        setSelectedStatus(job?.status || '');
-        setAmount(job?.totalAmount || '');
-        setPaymentMethod(job?.paymentMethod || 'Online Payment');
+        if (job) {
+            setSelectedStatus(job.status || '');
+            setAmount(job.totalAmount || '');
+            setPaymentMethod(job.paymentMethod || 'Online Payment');
+        }
     }, [job]);
 
     if (!isOpen || !job) {
@@ -16,36 +18,41 @@ const UpdateStatusModal = ({ isOpen, onClose, onUpdateStatus, job }) => {
     }
 
     const handleUpdate = () => {
-        if (selectedStatus) {
-            const updateData = {
-                status: selectedStatus,
-            };
-            if (selectedStatus === 'Completed') {
-                const parsedAmount = parseFloat(amount);
-                if (isNaN(parsedAmount) || parsedAmount <= 0) {
-                    alert('A valid positive amount is required when status is Completed.');
-                    return;
-                }
-                updateData.totalAmount = parsedAmount;
-                updateData.paymentMethod = paymentMethod;
-                updateData.paymentStatus = 'pending';
-            }
-
-            // Remove properties with undefined values
-            Object.keys(updateData).forEach(key => {
-                if (updateData[key] === undefined) {
-                    delete updateData[key];
-                }
-            });
-
-            if (!updateData.status) {
-                 alert('A valid status must be selected.');
-                 return;
-            }
-
-            onUpdateStatus(job.id, updateData);
-            onClose();
+        if (!selectedStatus) {
+            alert('A valid status must be selected.');
+            return;
         }
+
+        const dataToUpdate = {
+            status: selectedStatus,
+        };
+
+        if (selectedStatus === 'Completed') {
+            const parsedAmount = parseFloat(amount);
+            if (isNaN(parsedAmount) || parsedAmount <= 0) {
+                alert('A valid positive amount is required when status is Completed.');
+                return;
+            }
+            dataToUpdate.totalAmount = parsedAmount;
+            dataToUpdate.paymentMethod = paymentMethod;
+            dataToUpdate.paymentStatus = 'pending';
+        }
+
+        // Create a new object ensuring no undefined values are present
+        const cleanData = Object.keys(dataToUpdate).reduce((acc, key) => {
+            if (dataToUpdate[key] !== undefined) {
+                acc[key] = dataToUpdate[key];
+            }
+            return acc;
+        }, {});
+        
+        if (!cleanData.status) {
+            alert('Status is missing. Cannot update.');
+            return;
+        }
+
+        onUpdateStatus(job.id, cleanData);
+        onClose();
     };
 
     const statuses = ['Pending', 'In Progress', 'Completed', 'Cancelled'];

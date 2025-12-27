@@ -1,196 +1,273 @@
-import React, { useState } from 'react';
-import { db } from './firebase'; 
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from './AuthContext'; 
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, getDocs, arrayUnion } from 'firebase/firestore';
+import { db } from './firebase';
+import { useAuth } from './AuthContext';
+import { Switch } from '@headlessui/react';
+import { BuildingStorefrontIcon, TruckIcon, ShareIcon } from '@heroicons/react/24/outline';
+import TimeSlotPicker from './TimeSlotPicker';
 
-const steps = ['Device Information', 'Issue Description', 'Contact Details', 'Review and Submit'];
+const issueCategories = {
+    "Screen": ["Cracked screen", "Flickering display", "Unresponsive touch"],
+    "Battery": ["Not charging", "Drains quickly", "Swollen battery"],
+    "Software": ["Stuck on logo", "App crashing", "System slow"],
+    "Camera": ["Blurry photos", "Camera app not opening"],
+};
+
+const generateOtp = () => {
+    return Math.floor(1000 + Math.random() * 9000).toString();
+};
 
 const NewRepairRequest = () => {
-  const { currentUser } = useAuth();
-  const [activeStep, setActiveStep] = useState(0);
-  const [formData, setFormData] = useState({
-    deviceType: '',
-    brand: '',
-    model: '',
-    serialNumber: '',
-    issue: '',
-    fullName: '',
-    email: '',
-    phoneNumber: '',
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionStatus, setSubmissionStatus] = useState(null); // 'success', 'error'
-  const [submissionMessage, setSubmissionMessage] = useState('');
+    const { currentUser } = useAuth();
+    const navigate = useNavigate();
+    
+    const [repairMode, setRepairMode] = useState('in-store');
+    const [deviceBrand, setDeviceBrand] = useState('');
+    const [deviceModel, setDeviceModel] = useState('');
+    const [imei, setImei] = useState('');
+    const [issueCategory, setIssueCategory] = useState('');
+    const [subIssue, setSubIssue] = useState('');
+    const [issueDescription, setIssueDescription] = useState('');
+    const [pickupAddress, setPickupAddress] = useState('');
+    const [pickupCity, setPickupCity] = useState('');
+    const [pickupPincode, setPickupPincode] = useState('');
+    const [dropoffTime, setDropoffTime] = useState('');
+    const [locationUrl, setLocationUrl] = useState('');
+    const [isLocationShared, setIsLocationShared] = useState(false);
+    const [locationError, setLocationError] = useState('');
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+    const [loading, setLoading] = useState(false);
+    const [imeiWarning, setImeiWarning] = useState('');
 
-  const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
-  };
+    useEffect(() => {
+        setSubIssue('');
+    }, [issueCategory]);
 
-  const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
+    const handleShareLocation = () => {
+        setLocationError('');
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude } = position.coords;
+                    const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                    setLocationUrl(url);
+                    setIsLocationShared(true);
+                },
+                (error) => {
+                    console.error("Error getting location: ", error);
+                    setLocationError("Could not get your location. Please check your browser/OS settings and grant permission.");
+                    setIsLocationShared(false);
+                }
+            );
+        } else {
+            setLocationError("Geolocation is not supported by this browser.");
+        }
+    };
+    
+    const checkImei = async (imeiValue) => {
+        if (imeiValue.length < 15) {
+            setImeiWarning('');
+            return;
+        }
+        
+        const repairsRef = collection(db, "repairs");
+        const q = query(repairsRef, where("imei", "==", imeiValue));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            setImeiWarning("Warning: A device with this IMEI/Serial already exists.");
+        } else {
+            setImeiWarning("");
+        }
+    };
+    
+    const handleImeiChange = (e) => {
+        const value = e.target.value.replace(/[^0-9]/g, '');
+        if(value.length <= 15) {
+            setImei(value);
+            checkImei(value);
+        }
+    };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!currentUser) {
-        setSubmissionStatus('error');
-        setSubmissionMessage('You must be logged in to submit a request.');
-        return;
-    }
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!currentUser || !dropoffTime) {
+            alert("Please select a time slot before submitting.");
+            return;
+        }
+        if (repairMode === 'home-pickup' && !isLocationShared) {
+            alert("Home pickup requires a shared location. Please click the 'Share Current Location' button before submitting.");
+            return;
+        }
 
-    setIsSubmitting(true);
-    setSubmissionStatus(null);
-    setSubmissionMessage('');
+        setLoading(true);
+        let otp = null;
+        if (repairMode === 'home-pickup') {
+            otp = generateOtp();
+        }
 
-    try {
-      // 1. Add repair request to 'repairs' collection
-      await addDoc(collection(db, 'repairs'), {
-        userId: currentUser.uid,
-        device: `${formData.brand} ${formData.model}`,
-        issue: formData.issue,
-        deviceType: formData.deviceType,
-        serialNumber: formData.serialNumber,
-        contactDetails: {
-          fullName: formData.fullName,
-          email: formData.email,
-          phoneNumber: formData.phoneNumber
-        },
-        status: 'Pending',
-        createdAt: serverTimestamp(),
-      });
+        try {
+            const repairData = {
+                userId: currentUser.uid,
+                repairMode,
+                deviceBrand,
+                deviceModel,
+                imei,
+                issueCategory,
+                subIssue,
+                issueDescription,
+                pickupAddress: repairMode === 'home-pickup' ? { address: pickupAddress, city: pickupCity, pincode: pickupPincode, locationUrl: locationUrl } : null,
+                preferredSlot: dropoffTime, // Use the dropoffTime string directly
+                status: 'Requested',
+                createdAt: serverTimestamp(),
+                otp: otp,
+                statusHistory: [], // Initialize as an empty array
+            };
 
-      // 2. Create a notification for the admin
-      await addDoc(collection(db, 'notifications'), {
-        userId: 'admin', // Specific ID for admin user
-        type: 'repair_request_new',
-        title: 'New Repair Request',
-        message: `A new repair request has been submitted by ${formData.fullName || currentUser.email}.`,
-        read: false,
-        createdAt: serverTimestamp(),
-      });
-      
-      setSubmissionStatus('success');
-      setSubmissionMessage('Your repair request has been submitted successfully! We will get back to you shortly.');
-      setActiveStep(steps.length); // Move to a "completed" step
+            const docRef = await addDoc(collection(db, 'repairs'), repairData);
+            
+            const repairDocRef = doc(db, 'repairs', docRef.id);
+            await updateDoc(repairDocRef, {
+                statusHistory: arrayUnion({ status: 'Requested', timestamp: serverTimestamp() })
+            });
 
-    } catch (error) {
-      console.error('Error submitting repair request:', error);
-      setSubmissionStatus('error');
-      setSubmissionMessage('There was an error submitting your request. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+            navigate('/confirmation', { state: { repairId: docRef.id, repairMode, otp } });
 
-  const getStepContent = (step) => {
-    switch (step) {
-      case 0:
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" name="deviceType" value={formData.deviceType} onChange={handleInputChange} placeholder="Device Type (e.g., Smartphone, Laptop)" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" name="brand" value={formData.brand} onChange={handleInputChange} placeholder="Brand (e.g., Apple, Samsung)" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" name="model" value={formData.model} onChange={handleInputChange} placeholder="Model (e.g., iPhone 13, Galaxy S22)" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="text" name="serialNumber" value={formData.serialNumber} onChange={handleInputChange} placeholder="Serial Number (Optional)" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        );
-      case 1:
-        return (
-          <textarea name="issue" value={formData.issue} onChange={handleInputChange} placeholder="Briefly describe the issue" rows="4" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-        );
-      case 2:
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input type="text" name="fullName" value={formData.fullName} onChange={handleInputChange} placeholder="Full Name" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="email" name="email" value={formData.email} onChange={handleInputChange} placeholder="Email Address" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-            <input type="tel" name="phoneNumber" value={formData.phoneNumber} onChange={handleInputChange} placeholder="Phone Number" className="w-full bg-gray-100 border border-gray-300 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          </div>
-        );
-      case 3:
-        return (
-            <div>
-                <h3 className="text-xl font-semibold text-gray-800 mb-4">Review Your Request</h3>
-                <div className="space-y-2 text-gray-700">
-                    <p><strong>Device:</strong> {formData.deviceType} {formData.brand} {formData.model}</p>
-                    <p><strong>Issue:</strong> {formData.issue}</p>
-                    <p><strong>Contact:</strong> {formData.fullName} ({formData.email}, {formData.phoneNumber})</p>
+            try {
+                await addDoc(collection(db, 'notifications'), {
+                    userId: 'admin',
+                    type: 'repair_request_new',
+                    title: 'New Repair Request',
+                    message: `A new repair for a ${deviceBrand} ${deviceModel} has been submitted by a customer.`,
+                    read: false,
+                    createdAt: serverTimestamp(),
+                    relatedRepairId: docRef.id
+                });
+            } catch (notificationError) {
+                console.error("Error sending notification:", notificationError);
+            }
+
+        } catch (error) {
+            console.error("Error adding document: ", error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="bg-slate-800 p-8 rounded-xl shadow-lg max-w-4xl mx-auto text-white">
+            <h2 className="text-2xl font-bold mb-6">Submit a New Repair Request</h2>
+            <form onSubmit={handleSubmit} className="space-y-8">
+                <div className="flex justify-center items-center space-x-4 bg-slate-700/50 p-2 rounded-lg">
+                    <BuildingStorefrontIcon className={`h-6 w-6 ${repairMode === 'in-store' ? 'text-blue-400' : 'text-gray-400'}`} />
+                    <span className={`${repairMode === 'in-store' ? 'text-white' : 'text-gray-400'}`}>In-Store Drop-off</span>
+                    <Switch
+                        checked={repairMode === 'home-pickup'}
+                        onChange={() => setRepairMode(repairMode === 'in-store' ? 'home-pickup' : 'in-store')}
+                        className={`${repairMode === 'home-pickup' ? 'bg-blue-600' : 'bg-slate-600'} relative inline-flex h-7 w-14 items-center rounded-full transition-colors`}>
+                        <span className="sr-only">Enable Home Pickup</span>
+                        <span className={`${repairMode === 'home-pickup' ? 'translate-x-8' : 'translate-x-1'} inline-block h-5 w-5 transform rounded-full bg-white transition-transform`}/>
+                    </Switch>
+                    <span className={`${repairMode === 'home-pickup' ? 'text-white' : 'text-gray-400'}`}>Home Pickup</span>
+                    <TruckIcon className={`h-6 w-6 ${repairMode === 'home-pickup' ? 'text-blue-400' : 'text-gray-400'}`} />
                 </div>
-            </div>
-        );
-      default:
-        throw new Error('Unknown step');
-    }
-  };
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Device Brand</label>
+                        <input type="text" value={deviceBrand} onChange={e => setDeviceBrand(e.target.value)} required minLength="2" maxLength="50" className="w-full bg-slate-700 p-3 rounded-lg" />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Device Model</label>
+                        <input type="text" value={deviceModel} onChange={e => setDeviceModel(e.target.value)} required minLength="2" maxLength="50" className="w-full bg-slate-700 p-3 rounded-lg" />
+                    </div>
+                </div>
 
-  return (
-    <div className="container mx-auto p-4 md:p-8 font-sans">
-      <div className="bg-white rounded-2xl shadow-lg p-4 md:p-8">
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-800 mb-6">New Repair Request</h2>
-        {activeStep === steps.length ? (
-            <div className="text-center py-12">
-                {submissionStatus === 'success' && (
-                    <>
-                        <svg className="w-16 h-16 mx-auto text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <h3 className="text-2xl font-bold text-gray-800 mt-4">Submission Successful!</h3>
-                        <p className="text-gray-600 mt-2">{submissionMessage}</p>
-                    </>
-                )}
-                {submissionStatus === 'error' && (
-                    <>
-                         <svg className="w-16 h-16 mx-auto text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        <h3 className="text-2xl font-bold text-gray-800 mt-4">Submission Failed</h3>
-                        <p className="text-red-600 mt-2">{submissionMessage}</p>
-                        <button onClick={() => setActiveStep(0)} className="mt-6 bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700">
-                            Try Again
-                        </button>
-                    </>
-                )}
-            </div>
-        ) : (
-            <>
-                <div className="mb-8">
-                  <div className="hidden md:flex items-center justify-between">
-                    {steps.map((label, index) => (
-                      <React.Fragment key={label}>
-                        <div className="flex items-center">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${activeStep >= index ? 'bg-blue-600' : 'bg-gray-300'}`}>{index + 1}</div>
-                          <span className={`ml-4 text-lg font-medium ${activeStep >= index ? 'text-gray-800' : 'text-gray-500'}`}>{label}</span>
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">IMEI / Serial Number (15 digits)</label>
+                    <input type="text" value={imei} onChange={handleImeiChange} placeholder="Enter 15-digit IMEI to check device history" className="w-full bg-slate-700 p-3 rounded-lg" />
+                    {imeiWarning && <p className="text-yellow-400 text-xs mt-2">{imeiWarning}</p>}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Issue Category</label>
+                        <select value={issueCategory} onChange={e => setIssueCategory(e.target.value)} required className="w-full bg-slate-700 p-3 rounded-lg">
+                            <option value="">Select Category</option>
+                            {Object.keys(issueCategories).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Specific Issue</label>
+                        <select value={subIssue} onChange={e => setSubIssue(e.target.value)} required disabled={!issueCategory} className="w-full bg-slate-700 p-3 rounded-lg disabled:opacity-50">
+                            <option value="">Select Issue</option>
+                            {issueCategory && issueCategories[issueCategory].map(issue => <option key={issue} value={issue}>{issue}</option>)}
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Detailed Description (Optional)</label>
+                    <textarea value={issueDescription} onChange={e => setIssueDescription(e.target.value)} rows="3" className="w-full bg-slate-700 p-3 rounded-lg"></textarea>
+                </div>
+
+                {repairMode === 'in-store' ? (
+                    <div className="border-t border-slate-700 pt-6">
+                        <h3 className="text-lg font-semibold mb-4">In-Store Drop-off</h3>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">Preferred Drop-off Time Slot</label>
+                        <TimeSlotPicker selectedSlot={dropoffTime} setSelectedSlot={setDropoffTime} />
+                        <p className="text-xs text-gray-400 mt-2">Booking a slot helps you avoid waiting in a queue.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-6 border-t border-slate-700 pt-6">
+                        <h3 className="text-lg font-semibold">Home Pickup & Delivery</h3>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">Pickup Address</label>
+                            <input type="text" value={pickupAddress} onChange={e => setPickupAddress(e.target.value)} required className="w-full bg-slate-700 p-3 rounded-lg" />
                         </div>
-                        {index < steps.length - 1 && <div className="flex-auto border-t-2 border-gray-300 mx-4"></div>}
-                      </React.Fragment>
-                    ))}
-                  </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                           <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">City</label>
+                                <input type="text" value={pickupCity} onChange={e => setPickupCity(e.target.value)} required className="w-full bg-slate-700 p-3 rounded-lg" />
+                           </div>
+                           <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-2">Pincode</label>
+                                <input type="text" value={pickupPincode} onChange={e => setPickupPincode(e.target.value)} required className="w-full bg-slate-700 p-3 rounded-lg" />
+                           </div>
+                        </div>
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">Select Pickup Time Slot</label>
+                             <TimeSlotPicker selectedSlot={dropoffTime} setSelectedSlot={setDropoffTime} />
+                        </div>
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">Pickup Location <span className="text-red-400 font-bold">*</span></label>
+                            <button 
+                                type="button" 
+                                onClick={handleShareLocation}
+                                disabled={isLocationShared}
+                                className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold px-4 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-md disabled:bg-slate-500 disabled:cursor-not-allowed"
+                            >
+                                <ShareIcon className="h-5 w-5" />
+                                {isLocationShared ? 'Location Shared!' : 'Share Current Location'}
+                            </button>
+                            {isLocationShared && <p className="text-green-400 text-xs mt-2 text-center">Location URL has been successfully generated.</p>}
+                             {!isLocationShared && <p className="text-amber-400 text-xs mt-2 text-center">A shared location is required for home pickup.</p>}
+                            {locationError && <p className="text-red-400 text-xs mt-2 text-center">{locationError}</p>}
+                        </div>
+                    </div>
+                )}
+
+                <div className="text-center border-t border-slate-700 pt-6">
+                    <p className="text-gray-400 text-sm mb-4">Estimates are preliminary and subject to final diagnosis. <br/> (Est. Cost: ₹2,000-₹5,000, Est. Time: 2-4 Days)</p>
+                    <button type="submit" disabled={loading || !dropoffTime || (repairMode === 'home-pickup' && !isLocationShared)} className="bg-blue-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md w-full md:w-auto disabled:opacity-50">
+                        {loading ? 'Submitting...' : 'Submit Request'}
+                    </button>
+                    {repairMode === 'home-pickup' && !isLocationShared && <p className="text-red-400 text-sm mt-2">Please share your location before submitting.</p>}
                 </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="p-4 md:p-6 border border-gray-200 rounded-lg mb-6">
-                        {getStepContent(activeStep)}
-                    </div>
-                    <div className="flex justify-end">
-                        {activeStep !== 0 && (
-                            <button type="button" onClick={handleBack} disabled={isSubmitting} className="mr-4 bg-gray-200 text-gray-700 font-bold py-2 px-4 md:px-6 rounded-lg hover:bg-gray-300 disabled:opacity-50">
-                                Back
-                            </button>
-                        )}
-                        {activeStep === steps.length - 1 ? (
-                            <button type="submit" disabled={isSubmitting} className="bg-blue-600 text-white font-bold py-2 px-4 md:px-6 rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                                {isSubmitting ? 'Submitting...' : 'Submit Request'}
-                            </button>
-                        ) : (
-                            <button type="button" onClick={handleNext} className="bg-blue-600 text-white font-bold py-2 px-4 md:px-6 rounded-lg hover:bg-blue-700">
-                                Next
-                            </button>
-                        )}
-                    </div>
-                </form>
-            </>
-        )}
-      </div>
-    </div>
-  );
+            </form>
+        </div>
+    );
 };
 
 export default NewRepairRequest;

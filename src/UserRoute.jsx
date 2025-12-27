@@ -1,0 +1,16 @@
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
+
+const UserRoute = ({ children }) => {
+    const { currentUser, loading } = useAuth();
+
+    if (loading) {
+        // You can return a loading spinner here if you want
+        return <div>Loading...</div>;
+    }
+
+    return currentUser ? children : <Navigate to="/login" />;
+};
+
+export default UserRoute;

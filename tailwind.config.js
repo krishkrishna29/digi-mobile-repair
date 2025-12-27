@@ -7,7 +7,12 @@ export default {
   theme: {
     extend: {
       animation: {
-        'spin-slow': 'spin 3s linear infinite',
+        'gradient': 'gradient 8s linear infinite',
+      },
+      keyframes: {
+        gradient: {
+          to: { 'background-position': '200% center' },
+        },
       }
     },
   },

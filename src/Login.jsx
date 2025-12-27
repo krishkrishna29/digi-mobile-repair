@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
-import { db } from './firebase';
-import { doc, getDoc } from "firebase/firestore";
+import { useAuth } from './AuthContext'; // Import useAuth
 import { EnvelopeIcon, LockClosedIcon, WrenchScrewdriverIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
@@ -10,8 +8,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
-  const auth = getAuth();
+  const { login } = useAuth(); // Get login function
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -22,20 +19,9 @@ const Login = () => {
     }
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      await login(email, password);
       toast.success('Login successfully!');
-      const user = userCredential.user;
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        if (userData.role === 'admin') {
-          navigate('/admin');
-        } else {
-          navigate('/dashboard');
-        }
-      } else {
-        navigate('/dashboard');
-      }
+      // Redirection will be handled globally in App.jsx
     } catch (error) {
       toast.error('Incorrect user ID/password');
     }

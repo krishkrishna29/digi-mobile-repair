@@ -3,19 +3,17 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
 const AdminRoute = ({ children }) => {
-  const { currentUser, userRole, loading } = useAuth();
+  const { userProfile, loading } = useAuth();
 
   if (loading) {
     return <div>Loading...</div>; // Or a spinner component
   }
 
-//  console.log('AdminRoute check:', { currentUser, userRole });
-
-  if (!currentUser) {
+  if (!userProfile) {
     return <Navigate to="/login" />;
   }
 
-  return userRole === 'admin' ? children : <Navigate to="/dashboard" />;
+  return userProfile.role === 'admin' ? children : <Navigate to="/dashboard" />;
 };
 
 export default AdminRoute;

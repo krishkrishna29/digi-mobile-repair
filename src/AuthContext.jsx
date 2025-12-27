@@ -1,54 +1,98 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 
 const AuthContext = createContext();
 
-export const useAuth = () => {
-  return useContext(AuthContext);
-};
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [userRole, setUserRole] = useState('unauthenticated'); // Initialize to a default string
-  const [loading, setLoading] = useState(true);
-  const auth = getAuth();
+    const [currentUser, setCurrentUser] = useState(null);
+    const [userProfile, setUserProfile] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setCurrentUser(user);
-          setUserRole(userDoc.data().role || 'user'); // Default to 'user' if role is missing
-        } else {
-          // User exists in Auth, but not in Firestore.
-          // This could be a manually deleted user.
-          // Force a sign out.
-          await signOut(auth);
-          setCurrentUser(null);
-          setUserRole('unauthenticated');
+    const fetchUserProfile = useCallback(async (user) => {
+        if (!user) {
+            setUserProfile(null);
+            setLoading(false);
+            return;
         }
-      } else {
-        setCurrentUser(null);
-        setUserRole('unauthenticated');
-      }
-      setLoading(false);
-    });
+        console.log("Fetching profile for user:", user.uid);
+        try {
+            const docRef = doc(db, 'users', user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                console.log("User profile found:", docSnap.data());
+                setUserProfile({ uid: user.uid, ...docSnap.data() });
+            } else {
+                console.log("No user profile found in Firestore for UID:", user.uid);
+                // Handle case where user exists in auth but not in firestore
+                setUserProfile({ uid: user.uid, email: user.email }); 
+            }
+        } catch (error) {
+            console.error("Error fetching user profile:", error);
+            // Set a basic profile to avoid full app failure
+            setUserProfile({ uid: user.uid, email: user.email }); 
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-    return unsubscribe;
-  }, [auth]);
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            setCurrentUser(user);
+            await fetchUserProfile(user);
+        });
+        return () => unsubscribe();
+    }, [fetchUserProfile]);
 
-  const value = {
-    currentUser,
-    userRole,
-    loading,
-  };
+    const login = async (email, password) => {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        await fetchUserProfile(userCredential.user);
+        return userCredential;
+    };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+    const signup = async (email, password, fullName, phoneNumber) => {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        // Create user profile in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+            fullName,
+            email,
+            phoneNumber,
+            role: 'user', // Assign default role
+            createdAt: new Date()
+        });
+        await fetchUserProfile(user);
+        return userCredential;
+    };
+
+    const logout = () => {
+        setUserProfile(null); // Clear user profile on logout
+        return signOut(auth);
+    };
+
+    // This function will be used by the profile page to trigger a refresh
+    const refreshUserProfile = () => {
+        if (currentUser) {
+            return fetchUserProfile(currentUser);
+        }
+    }
+
+    const value = {
+        currentUser,
+        userProfile,
+        loading,
+        login,
+        signup,
+        logout,
+        refreshUserProfile // Expose the refresh function
+    };
+
+    return (
+        <AuthContext.Provider value={value}>
+            {!loading && children}
+        </AuthContext.Provider>
+    );
 };

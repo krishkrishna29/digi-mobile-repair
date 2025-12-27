@@ -8,18 +8,21 @@ const PromotionModal = ({ isOpen, onClose, onSave, promotion }) => {
     const [description, setDescription] = useState('');
     const [code, setCode] = useState('');
     const [expiry, setExpiry] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
 
     useEffect(() => {
         if (promotion) {
             setTitle(promotion.title || '');
             setDescription(promotion.description || '');
-            setCode(promotion.code || '');
-            setExpiry(promotion.expiry ? promotion.expiry.toDate().toISOString().split('T')[0] : '');
+            setCode(promotion.couponCode || '');
+            setExpiry(promotion.expiryDate ? promotion.expiryDate.toDate().toISOString().split('T')[0] : '');
+            setImageUrl(promotion.imageUrl || '');
         } else {
             setTitle('');
             setDescription('');
             setCode('');
             setExpiry('');
+            setImageUrl('');
         }
     }, [promotion]);
 
@@ -28,8 +31,9 @@ const PromotionModal = ({ isOpen, onClose, onSave, promotion }) => {
         onSave({ 
             title,
             description,
-            code,
-            expiry: expiry ? new Date(expiry) : null 
+            couponCode: code,
+            expiryDate: expiry ? new Date(expiry) : null, 
+            imageUrl 
         });
     };
 
@@ -37,7 +41,7 @@ const PromotionModal = ({ isOpen, onClose, onSave, promotion }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+            <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md text-gray-800">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-bold text-gray-800">{promotion ? 'Edit' : 'Create'} Promotion</h2>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200">
@@ -63,6 +67,10 @@ const PromotionModal = ({ isOpen, onClose, onSave, promotion }) => {
                             <input type="date" id="expiry" value={expiry} onChange={e => setExpiry(e.target.value)} className="block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 pr-10" />
                             <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         </div>
+                    </div>
+                    <div>
+                        <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700">Image URL</label>
+                        <input type="url" id="imageUrl" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://example.com/image.jpg" className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
                     </div>
                     <div className="flex justify-end pt-4 space-x-4">
                         <button type="button" onClick={onClose} className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100">Cancel</button>
@@ -136,8 +144,9 @@ const Promotions = () => {
             <div className="bg-white p-8 rounded-xl shadow-lg">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">Active Promotions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {promotions.filter(p => !isExpired(p.expiry)).map(promo => (
+                    {promotions.filter(p => !isExpired(p.expiryDate)).map(promo => (
                         <div key={promo.id} className="bg-gradient-to-tr from-blue-50 to-indigo-100 p-6 rounded-lg shadow-md relative">
+                            <img src={promo.imageUrl || 'https://via.placeholder.com/400x200'} alt={promo.title} className="w-full h-40 object-cover rounded-t-lg mb-4" />
                             <div className="flex justify-between items-start">
                                 <h3 className="text-xl font-bold text-gray-900">{promo.title}</h3>
                                 <div className="flex space-x-2">
@@ -147,8 +156,8 @@ const Promotions = () => {
                             </div>
                             <p className="text-gray-600 mt-2">{promo.description}</p>
                             <div className="mt-4 flex items-center justify-between">
-                                <p className="text-lg font-mono bg-gray-200 px-3 py-1 rounded-md text-gray-700">{promo.code}</p>
-                                <p className="text-sm text-gray-500">Expires: {promo.expiry ? promo.expiry.toDate().toLocaleDateString() : 'Never'}</p>
+                                <p className="text-lg font-mono bg-gray-200 px-3 py-1 rounded-md text-gray-700">{promo.couponCode}</p>
+                                <p className="text-sm text-gray-500">Expires: {promo.expiryDate ? promo.expiryDate.toDate().toLocaleDateString() : 'Never'}</p>
                             </div>
                         </div>
                     ))}
@@ -158,13 +167,13 @@ const Promotions = () => {
             <div className="bg-white p-8 rounded-xl shadow-lg mt-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">Expired Promotions</h2>
                 <div className="space-y-4">
-                     {promotions.filter(p => isExpired(p.expiry)).map(promo => (
+                     {promotions.filter(p => isExpired(p.expiryDate)).map(promo => (
                         <div key={promo.id} className="bg-gray-100 p-4 rounded-lg flex justify-between items-center">
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-500">{promo.title}</h3>
-                                <p className="text-gray-400 text-sm">Code: {promo.code}</p>
+                                <p className="text-gray-400 text-sm">Code: {promo.couponCode}</p>
                             </div>
-                            <p className="text-sm text-gray-400">Expired on: {promo.expiry.toDate().toLocaleDateString()}</p>
+                            <p className="text-sm text-gray-400">Expired on: {promo.expiryDate.toDate().toLocaleDateString()}</p>
                         </div>
                     ))}
                 </div>

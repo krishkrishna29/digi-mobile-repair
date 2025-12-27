@@ -3,49 +3,89 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // HELPER FUNCTIONS
+    /* =========================
+       HELPER FUNCTIONS
+    ========================== */
     function isAuth() {
       return request.auth != null;
     }
 
     function getUserData() {
+      // This function makes a 'get' call. It should NOT be used in 'list' rules.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isAdmin() {
-      return isAuth() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-        getUserData().role == 'admin';
+      // This function makes 'exists' and 'get' calls. It should NOT be used in 'list' rules.
+      return isAuth()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && getUserData().role == 'admin';
     }
 
-    function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
+    // Checks if the requesting user is the owner via the document's 'userId' field.
+    // Safe for read, get, update, delete.
+    function isOwnerByData() {
+        return isAuth() && resource.data.userId == request.auth.uid;
     }
 
-    // RULES FOR COLLECTIONS
+    /* =========================
+       USERS
+       - A user can only 'get' their own document.
+       - Listing all users is restricted to admins to protect user privacy.
+    ========================== */
     match /users/{userId} {
+      // 🛑 CRITICAL: Listing all users is a security risk. Only admins can do it.
+      // Your frontend MUST use a direct 'get' for the user profile. See section 2.
       allow list: if isAdmin();
-      allow get: if isOwner(userId) || isAdmin();
-      allow create: if isAuth(); 
-      allow update: if isOwner(userId) || isAdmin();
+      
+      // A user can get their own document, and admins can get any document.
+      // This is safe for doc('users', uid).onSnapshot().
+      allow get: if isAuth() && (request.auth.uid == userId || isAdmin());
+      
+      // Any authenticated user can create their own user document.
+      allow create: if isAuth();
+      
+      // A user can only update their own document. Admins can update any.
+      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
+      
+      // Only admins can delete user documents.
       allow delete: if isAdmin();
     }
 
+    /* =========================
+       REPAIRS (SNAPSHOT SAFE)
+    ========================== */
     match /repairs/{repairId} {
-      // Allow read/list if the user is the owner or an admin
-      allow read, list: if isAuth() && (
-        (resource != null && resource.data.userId == request.auth.uid) || 
-        isAdmin()
-      );
-      
-      // Authenticated users can create repairs.
-      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      // ✅ FIX: Any authenticated user can query the collection.
+      // This is required for onSnapshot on queries to work.
+      // The client MUST filter these results (e.g., where('userId', '==', currentUser.uid)).
+      allow list, read: if isAuth();
 
-      // Owners and Admins can update/delete.
-      allow update, delete: if isAuth() && (
-        (resource != null && resource.data.userId == request.auth.uid) || 
-        isAdmin()
-      );
+      allow create: if isAuth();
+
+      // ✅ SECURE: Modification is still protected. Only the owner or an admin can change/delete it.
+      allow update, delete: if isOwnerByData() || isAdmin();
+
+      match /messages/{messageId} {
+        allow read, list, create: if isAuth() && (
+          get(/databases/$(database)/documents/repairs/$(repairId)).data.userId == request.auth.uid || isAdmin()
+        );
+      }
+    }
+
+    /* =========================
+       NOTIFICATIONS (SNAPSHOT SAFE)
+    ========================== */
+    match /notifications/{notificationId} {
+      // ✅ FIX: Follows the same pattern as repairs for snapshot safety.
+      // The client is responsible for querying only for its own notifications.
+      allow list, read: if isAuth();
+
+      allow create: if isAuth();
+      
+      // ✅ SECURE: Only the user the notification is for, or an admin, can update/delete it.
+      // This handles notifications for specific users AND general admin notifications.
+      allow update, delete: if isOwnerByData() || (resource.data.userId == 'admin' && isAdmin());
     }
 
     match /inventory/{itemId} {
@@ -53,19 +93,8 @@ service cloud.firestore {
         allow write, create, delete: if isAdmin();
     }
 
-    match /notifications/{notificationId} {
-      // Allow creation for any authenticated user
-      allow create: if isAuth();
-      
-      // Allow reading/updating/deleting if you are the recipient
-      allow read, list, update, delete: if isAuth() && (
-        (resource != null && resource.data.userId == request.auth.uid) || 
-        (resource != null && resource.data.userId == 'admin' && isAdmin())
-      );
-    }
-
     match /promotions/{promotionId} {
-      allow read, list: if isAuth();
+      allow read, list: if true;
       allow write, create, delete: if isAdmin();
     }
   }

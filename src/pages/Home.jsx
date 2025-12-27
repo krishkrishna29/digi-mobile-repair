@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRightIcon } from '@heroicons/react/24/solid';
-import AboutUs from '../components/AboutUs';
+import Footer from '../components/Footer';
 import WhyUs from '../components/WhyUs';
+import OfferHighlight from '../components/OfferHighlight';
 
 const services = [
   {
@@ -57,6 +58,8 @@ const Home = () => {
         </div>
       </div>
 
+      <OfferHighlight />
+
       {/* Services Section */}
       <div className="py-24 bg-black bg-opacity-60">
         <div className="container mx-auto px-6 md:px-12">
@@ -78,8 +81,9 @@ const Home = () => {
         </div>
       </div>
 
-      <AboutUs />
+      
       <WhyUs />
+      <Footer />
     </div>
   );
 };
