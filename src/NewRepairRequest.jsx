@@ -30,8 +30,6 @@ const NewRepairRequest = () => {
     const [pickupAddress, setPickupAddress] = useState('');
     const [pickupCity, setPickupCity] = useState('');
     const [pickupPincode, setPickupPincode] = useState('');
-    const [preferredDay, setPreferredDay] = useState('');
-    const [preferredTime, setPreferredTime] = useState('');
     const [locationUrl, setLocationUrl] = useState('');
     const [isLocationShared, setIsLocationShared] = useState(false);
     const [locationError, setLocationError] = useState('');
@@ -90,8 +88,6 @@ const NewRepairRequest = () => {
                 subIssue,
                 issueDescription,
                 pickupAddress: repairMode === 'home-pickup' ? { address: pickupAddress, city: pickupCity, pincode: pickupPincode, locationUrl: locationUrl } : null,
-                preferredDay,
-                preferredTime,
                 status: 'Requested',
                 createdAt: serverTimestamp(),
                 otp: otp,
@@ -169,31 +165,6 @@ const NewRepairRequest = () => {
                     <textarea value={issueDescription} onChange={e => setIssueDescription(e.target.value)} rows="3" className="w-full bg-slate-700 p-3 rounded-lg" required></textarea>
                 </div>
 
-                <div className="border-t border-slate-700 pt-6">
-                    <h3 className="text-lg font-semibold mb-4">Preferred Drop-off/Pickup Time</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Preferred Day</label>
-                            <select value={preferredDay} onChange={e => setPreferredDay(e.target.value)} required className="w-full bg-slate-700 p-3 rounded-lg">
-                                <option value="">Select a Day</option>
-                                <option value="Today">Today</option>
-                                <option value="Tomorrow">Tomorrow</option>
-                                <option value="Day After Tomorrow">The Day After Tomorrow</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Preferred Time of Day</label>
-                            <select value={preferredTime} onChange={e => setPreferredTime(e.target.value)} required className="w-full bg-slate-700 p-3 rounded-lg">
-                                <option value="">Select a Time</option>
-                                <option value="Morning (9am - 12pm)">Morning (9am - 12pm)</option>
-                                <option value="Afternoon (12pm - 4pm)">Afternoon (12pm - 4pm)</option>
-                                <option value="Evening (4pm - 7pm)">Evening (4pm - 7pm)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2">We will call you to confirm the exact time.</p>
-                </div>
-
                 {repairMode === 'home-pickup' && (
                      <div className="space-y-6 border-t border-slate-700 pt-6">
                         <h3 className="text-lg font-semibold">Home Pickup & Delivery</h3>
@@ -230,8 +201,8 @@ const NewRepairRequest = () => {
                 )}
 
                 <div className="text-center border-t border-slate-700 pt-6">
-                    <p className="text-gray-400 text-sm mb-4">Estimates are preliminary and subject to final diagnosis. <br/> (Est. Cost: ₹2,000-₹5,000, Est. Time: 2-4 Days)</p>
-                    <button type="submit" disabled={loading || !preferredDay || !preferredTime || (repairMode === 'home-pickup' && !isLocationShared)} className="bg-blue-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md w-full md:w-auto disabled:opacity-50">
+                    <p className="text-gray-400 text-sm mb-4">Our team will call you to schedule a pickup or drop-off time. <br/> (Est. Cost: ₹2,000-₹5,000, Est. Time: 2-4 Days)</p>
+                    <button type="submit" disabled={loading || (repairMode === 'home-pickup' && !isLocationShared)} className="bg-blue-600 text-white font-bold px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md w-full md:w-auto disabled:opacity-50">
                         {loading ? 'Submitting...' : 'Submit Request'}
                     </button>
                     {repairMode === 'home-pickup' && !isLocationShared && <p className="text-red-400 text-sm mt-2">Please share your location before submitting.</p>}

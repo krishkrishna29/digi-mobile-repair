@@ -40,7 +40,8 @@ service cloud.firestore {
     // =========================
     match /repairs/{repairId} {
       allow read: if isAuth() && (isOwner(resource.data.userId) || isAdmin() || (isTechnician() && resource.data.assignedTo == request.auth.uid));
-      allow create: if isAuth();
+      // TEMPORARY DIAGNOSTIC RULE
+      allow create: if isAuth(); 
       allow update: if (isAdmin() || 
                        (isTechnician() && resource.data.assignedTo == request.auth.uid) ||
                        (isOwner(resource.data.userId) && resource.data.status == 'Diagnosed' && request.resource.data.status in ['Repairing', 'Cancelled']));
@@ -65,6 +66,7 @@ service cloud.firestore {
     // =========================
     match /admin_notifications/{notificationId} {
       allow read, update, delete: if isAdmin();
+      // Any authenticated user can create a notification. The app ensures it's tied to a repair.
       allow create: if isAuth();
     }
 
@@ -77,6 +79,10 @@ service cloud.firestore {
     
     match /promotions/{promotionId} {
       allow read, write, create, delete: if isAdmin();
+    }
+
+    match /timeSlots/{slotId} {
+        allow read, write, create, delete: if isAdmin();
     }
   }
 }
