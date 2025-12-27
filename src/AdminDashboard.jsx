@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, arrayUnion } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { signOut } from 'firebase/auth';
 import { useAuth } from './AuthContext';
@@ -44,7 +44,7 @@ const menuItems = [
     { id: 'reports', text: 'Reports & Analytics', icon: DocumentChartBarIcon },
     { id: 'notifications', text: 'Notifications', icon: BellIcon },
     { id: 'support', text: 'Support', icon: LifebuoyIcon },
-    { id: 'promotions', text: 'Offers & Promotions', icon: CalendarDaysIcon },
+    { id: 'promotions', text: 'Offers & Promotions', icon: SparklesIcon },
     { id: 'chat-support', text: 'Chat Support', icon: ChatBubbleLeftRightIcon },
 ];
 
@@ -296,7 +296,9 @@ function AdminDashboard({users, repairs, setUsers}) {
   const handleStatusChange = async (job, updateData) => {
     try {
         if (!updateData || typeof updateData !== 'object') return;
-        await updateDoc(doc(db, 'repairs', job.id), updateData);
+        
+        const repairRef = doc(db, 'repairs', job.id);
+        await updateDoc(repairRef, updateData);
 
         // Send notification to user
         await addDoc(collection(db, 'notifications'), {
@@ -311,6 +313,7 @@ function AdminDashboard({users, repairs, setUsers}) {
 
     } catch (error) {
         console.error('Error updating status:', error);
+        alert(`Error updating status: ${error.message}`);
     } finally {
         setIsUpdateStatusModalOpen(false);
         setJobToUpdateStatus(null);
@@ -324,9 +327,18 @@ function AdminDashboard({users, repairs, setUsers}) {
 
   const handleAssignJob = async (jobId, techId) => {
     const repairRef = doc(db, 'repairs', jobId);
-    await updateDoc(repairRef, { assignedTo: techId, status: 'In Progress' });
-    
     const job = repairs.find(r => r.id === jobId);
+    
+    await updateDoc(repairRef, { 
+        assignedTo: techId, 
+        status: 'In Progress',
+        statusHistory: arrayUnion({
+            status: 'In Progress',
+            timestamp: new Date(),
+            notes: 'Technician assigned to the job.'
+        })
+    });
+    
     await addDoc(collection(db, 'notifications'), {
         userId: techId, type: 'info', title: 'New Job Assigned',
         message: `A new repair job for "${job?.deviceBrand} ${job?.deviceModel}" has been assigned to you.`,

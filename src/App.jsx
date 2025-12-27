@@ -145,15 +145,6 @@ const App = () => {
           }
         />
 
-        <Route
-          path="/admin/sales-revenue"
-          element={
-            <AdminRoute>
-              <SalesRevenue />
-            </AdminRoute>
-          }
-        />
-
         <Route path="/checkout" element={<CheckoutForm />} />
         <Route path="/payment/:repairId" element={<Payment />} />
 

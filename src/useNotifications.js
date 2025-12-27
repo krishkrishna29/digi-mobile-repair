@@ -1,24 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { useState, useEffect } from 'react';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from './AuthContext';
 
 export const useNotifications = () => {
-    const { currentUser, userProfile, loading: authLoading } = useAuth(); // Destructure userProfile and authLoading
+    const { currentUser, userProfile, loading: authLoading } = useAuth();
     const [notifications, setNotifications] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Only proceed if auth is not loading and userProfile is available
         if (authLoading || !currentUser || !userProfile) {
             setIsLoading(false);
             setNotifications([]);
             return;
         }
 
+        // Determine the correct collection path based on user role
+        const notificationsPath = userProfile.role === 'admin' 
+            ? 'admin_notifications' 
+            : `users/${currentUser.uid}/notifications`;
+
         const notificationsQuery = query(
-            collection(db, 'notifications'),
-            where('userId', '==', userProfile.role === 'admin' ? 'admin' : currentUser.uid), // Use userProfile.role directly
+            collection(db, notificationsPath),
             orderBy('createdAt', 'desc')
         );
 
@@ -27,7 +30,7 @@ export const useNotifications = () => {
                 const fetchedNotifications = snapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
-                    createdAt: doc.data().createdAt?.toDate() // Convert Firestore Timestamp to JS Date
+                    createdAt: doc.data().createdAt?.toDate()
                 }));
                 setNotifications(fetchedNotifications);
                 setIsLoading(false);
@@ -39,13 +42,15 @@ export const useNotifications = () => {
         );
 
         return () => unsubscribe();
-    }, [currentUser, userProfile, authLoading]); // Add userProfile and authLoading to dependencies
+    }, [currentUser, userProfile, authLoading]);
 
     const unreadCount = notifications.filter(n => !n.read).length;
+    const notificationsPath = userProfile?.role === 'admin' ? 'admin_notifications' : `users/${currentUser?.uid}/notifications`;
+
 
     const markAsRead = async (id) => {
         try {
-            const notifRef = doc(db, 'notifications', id);
+            const notifRef = doc(db, notificationsPath, id);
             await updateDoc(notifRef, { read: true });
         } catch (error) {
             console.error("Error marking notification as read: ", error);
@@ -57,7 +62,7 @@ export const useNotifications = () => {
             const batch = writeBatch(db);
             const unreadNotifs = notifications.filter(n => !n.read);
             unreadNotifs.forEach(notif => {
-                const notifRef = doc(db, 'notifications', notif.id);
+                const notifRef = doc(db, notificationsPath, notif.id);
                 batch.update(notifRef, { read: true });
             });
             await batch.commit();
@@ -68,7 +73,7 @@ export const useNotifications = () => {
 
     const deleteNotification = async (id) => {
         try {
-            const notifRef = doc(db, 'notifications', id);
+            const notifRef = doc(db, notificationsPath, id);
             await deleteDoc(notifRef);
         } catch (error) {
             console.error("Error deleting notification: ", error);
@@ -79,7 +84,7 @@ export const useNotifications = () => {
         try {
             const batch = writeBatch(db);
             notifications.forEach(notif => {
-                const notifRef = doc(db, 'notifications', notif.id);
+                const notifRef = doc(db, notificationsPath, notif.id);
                 batch.delete(notifRef);
             });
             await batch.commit();

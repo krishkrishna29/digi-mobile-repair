@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from './firebase';
 import RepairStatusTimeline from './RepairStatusTimeline';
 import Chat from './Chat'; // Import the Chat component
@@ -49,7 +49,7 @@ const UserRepairs = ({ repairs, onPayNow }) => {
                 status: newStatus,
                 statusHistory: arrayUnion({
                     status: newStatus,
-                    timestamp: serverTimestamp(),
+                    timestamp: new Date(),
                     notes: isApproved ? 'Customer approved the estimated cost.' : 'Customer declined the estimated cost.'
                 })
             });

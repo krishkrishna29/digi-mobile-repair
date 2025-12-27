@@ -3,64 +3,81 @@ import React from 'react';
 import { CheckIcon } from '@heroicons/react/24/solid';
 
 const statusSteps = [
-    'Requested',
+    'Pending',
     'Picked Up',
     'Diagnosed',
     'Repairing',
     'Ready',
-    'Delivered'
+    'Completed'
 ];
 
 const RepairStatusTimeline = ({ history }) => {
-    // Create a map of status to the latest timestamp for that status
-    const statusTimestamps = history.reduce((acc, entry) => {
-        acc[entry.status] = entry.timestamp?.toDate();
-        return acc;
-    }, {});
+    // We want to find the furthest reached status in our predefined steps
+    const reachedStatuses = history.map(h => h.status);
     
-    const currentStatusIndex = statusSteps.indexOf(Object.keys(statusTimestamps).pop());
+    // Find the index of the furthest status in our statusSteps array
+    let furthestIndex = -1;
+    statusSteps.forEach((step, index) => {
+        if (reachedStatuses.includes(step)) {
+            furthestIndex = index;
+        }
+    });
 
     return (
         <div className="p-6 bg-slate-800 rounded-xl shadow-lg">
-            <h3 className="text-lg font-bold text-white mb-6">Repair Progress</h3>
-            <div className="flex items-center">
+            <h3 className="text-lg font-bold text-white mb-8">Repair Progress</h3>
+            <div className="relative flex items-center justify-between">
+                {/* Connecting Line Background */}
+                <div className="absolute top-5 left-0 w-full h-0.5 bg-slate-700 -z-0"></div>
+                
+                {/* Active Connecting Line */}
+                <div 
+                    className="absolute top-5 left-0 h-0.5 bg-green-500 transition-all duration-500 -z-0"
+                    style={{ width: `${(furthestIndex / (statusSteps.length - 1)) * 100}%` }}
+                ></div>
+
                 {statusSteps.map((status, index) => {
-                    const isCompleted = status in statusTimestamps;
-                    const isActive = index === currentStatusIndex;
-                    const timestamp = statusTimestamps[status];
+                    const isReached = reachedStatuses.includes(status);
+                    const isCompleted = index <= furthestIndex;
+                    
+                    // Find the latest timestamp for this specific status
+                    const statusEntry = [...history].reverse().find(h => h.status === status);
+                    const timestamp = statusEntry?.timestamp?.toDate ? statusEntry.timestamp.toDate() : (statusEntry?.timestamp ? new Date(statusEntry.timestamp) : null);
 
                     return (
-                        <React.Fragment key={status}>
-                            <div className="flex flex-col items-center">
-                                <div
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                                        isCompleted ? 'bg-green-500 border-green-500' : 'bg-slate-700 border-slate-600'
-                                    }`}
-                                >
-                                    {isCompleted ? (
-                                        <CheckIcon className="h-6 w-6 text-white" />
-                                    ) : (
-                                        <span className="text-gray-400">{index + 1}</span>
-                                    )}
-                                </div>
-                                <p className={`mt-2 text-xs text-center ${isCompleted ? 'text-white font-semibold' : 'text-gray-400'}`}>
+                        <div key={status} className="relative z-10 flex flex-col items-center group">
+                            <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-500 ${
+                                    isCompleted 
+                                        ? 'bg-green-500 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.4)]' 
+                                        : 'bg-slate-800 border-slate-600'
+                                }`}
+                            >
+                                {isCompleted ? (
+                                    <CheckIcon className="h-6 w-6 text-white" />
+                                ) : (
+                                    <div className="w-2 h-2 rounded-full bg-slate-600"></div>
+                                )}
+                            </div>
+                            
+                            <div className="absolute top-12 w-32 text-center">
+                                <p className={`text-xs font-bold uppercase tracking-wider transition-colors duration-300 ${
+                                    isCompleted ? 'text-white' : 'text-gray-500'
+                                }`}>
                                     {status}
                                 </p>
                                 {timestamp && (
-                                     <p className="text-xs text-gray-500 mt-1">{timestamp.toLocaleDateString()}</p>
+                                     <p className="text-[10px] text-gray-500 mt-1 font-mono">
+                                        {timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                     </p>
                                 )}
                             </div>
-                            {index < statusSteps.length - 1 && (
-                                <div
-                                    className={`flex-1 h-1 mx-2 ${
-                                        isCompleted ? 'bg-green-500' : 'bg-slate-600'
-                                    }`}
-                                ></div>
-                            )}
-                        </React.Fragment>
+                        </div>
                     );
                 })}
             </div>
+            {/* Legend or extra info space */}
+            <div className="mt-20"></div>
         </div>
     );
 };

@@ -1,64 +1,36 @@
-# Project Blueprint
+# Blueprint: DIGI Mobile Repair Shop
 
-## Overview
+This document outlines the architecture, features, and implementation plan for the DIGI Mobile Repair Shop application.
 
-This document outlines the design, features, and implementation of the RepairDash application. The goal is to create a modern, user-friendly, and efficient application for managing mobile device repairs.
+## 1. Core Purpose & Capabilities
 
-## Design and Styling
+The application is a comprehensive platform for managing mobile device repairs, connecting customers with repair technicians and administrative staff.
 
-### Color Palette
+*   **User-Facing:** Customers can submit new repair requests, track the status of existing repairs, and communicate with support.
+*   **Admin-Facing:** Administrators have a full dashboard to manage incoming requests, assign jobs to technicians, update repair statuses, and oversee the entire workflow.
 
-*   **Primary:** Blue (used for buttons, links, and highlights)
-*   **Secondary:** Pink (used for accents and visual interest)
-*   **Background:** Dark Gray (`bg-gray-900`) and a slightly lighter shade (`bg-gray-800`) provide a modern and clean backdrop.
-*   **Text:** White (ensures readability and contrast)
+## 2. Implemented Features & Design
 
-### Typography
+### UI/UX & Styling
+*   **Theme:** A modern, dark theme using a slate color palette for a professional and visually comfortable experience.
+*   **Layout:** Responsive and clean, focusing on clarity and ease of use for both mobile and desktop users.
+*   **Components:** Utilizes modern UI components with clear visual hierarchy, including interactive forms, modals, and status timelines.
 
-*   **Font:** Sans-serif (for a clean and modern look)
-*   **Hierarchy:** Clear visual hierarchy is established through the use of different font sizes and weights for headings, subheadings, and body text.
+### User Authentication
+*   **Firebase Authentication:** Secure email/password and phone (OTP) authentication flows.
+*   **Role-Based Access Control (RBAC):** A `role` field (`user` or `admin`) in the user's Firestore document controls access to different parts of the application.
+*   **Protected Routes:** Separate routing for users and admins ensures that users cannot access administrative areas.
 
-### Visual Elements
+### Core User Features
+*   **New Repair Request:** A detailed form for users to submit repair requests, including device information, issue description, and an option for in-store drop-off or home pickup.
+*   **Repair Tracking:** A visual timeline allows users to track the status of their repairs from "Requested" to "Completed."
+*   **Real-time Notifications:** Users receive real-time notifications for important status updates on their repairs.
 
-*   **Illustration:** A relevant and visually engaging illustration is used on the authentication pages to create a unique experience.
-*   **Iconography:** The Heroicons library is used to provide a consistent and modern set of icons for user actions and navigation.
-*   **Animation:** A subtle, slow-spinning cog animation (`animate-spin-slow`) is used next to the company name to add a polished visual touch.
-
-## Implemented Changes & Features
-
-### Authentication
-*   **Pages:** Sign Up and Login pages.
-*   **Functionality:**
-    *   Users can create a new account with their full name, mobile number, email, and password.
-    *   Existing users can log in with their email and password.
-    *   User data is stored in Firebase Authentication and Firestore.
-*   **UI/UX:**
-    *   Modernized UI with a dark theme, centered forms, and clear calls to action.
-    *   Includes a visually engaging panel with an illustration and brand messaging.
-
-### Dashboard
-*   **Layout:** A two-column layout with a sidebar for navigation and a main content area.
-*   **Features:**
-    *   Displays active and completed repair requests.
-    *   Provides a summary of key metrics (active repairs, completed repairs, pending payments).
-    *   Includes a "Request a Repair" button for easy access to the new repair form.
-    *   A repair history table shows details of past and current repairs.
-*   **Styling:** Consistent dark theme with clear information hierarchy.
-
-### Notification System
-*   **Components:**
-    *   `Notification.jsx`: A floating notification panel that displays recent notifications.
-    *   `Notifications.jsx`: A full-page notification management interface.
-*   **Functionality:**
-    *   **Real-time Updates:** Real-time listeners (onSnapshot) for new notifications and unread counts.
-    *   **User-Specific Content:** Non-admin users only see their own notifications.
-    *   **Admin Capabilities:** Admins can view and manage all notifications, with a specific focus on new repair requests.
-    *   **Actions:** Support for marking individual notifications as read, marking all as read, deleting read notifications, and clearing all notifications.
-    *   **Confirmation Modals:** Integrated confirmation modals for bulk actions to prevent accidental data loss.
-*   **Permissions & Security:**
-    *   Firestore security rules updated to support role-based access control.
-    *   Resolved `FirebaseError: Missing or insufficient permissions` by simplifying rules and aligning client-side queries with the 10-get-call limit in Firestore batch operations.
-    *   Admins are explicitly targeted with notifications using a `userId: 'admin'` identifier.
+### Core Admin Features
+*   **Admin Dashboard:** A central hub for viewing all repair requests, sorted and searchable.
+*   **Job Assignment:** Admins can assign specific repair jobs to available technicians.
+*   **Status Updates:** Admins can update the status of any repair, which notifies the user in real-time.
+*   **Customer & Technician Management:** (Future) Sections for managing user and technician profiles.
 
 ### Offers & Promotions
 *   **Admin Interface:** A dedicated section in the Admin Dashboard for managing promotions.
@@ -75,34 +47,39 @@ This document outlines the design, features, and implementation of the RepairDas
 *   **Role-Aware Logic:** Navigation and data fetching are now fully aware of the user's role (admin vs. regular user).
 
 ### New Repair Request Form Features
+*   **In-Store vs. Home Pickup:** A toggle switch allows users to select their preferred repair mode.
+*   **Conditional Fields:** The form dynamically shows and hides fields based on the selected mode (e.g., address fields for home pickup).
+*   **Geolocation:** For home pickups, users can share their current location with a single click to generate a Google Maps URL.
 
-*   **QR Code Generation:** A unique QR code is generated for each repair request, simplifying the drop-off and pickup process.
-*   **Advanced Scheduling:** The system now simulates checking for time slot availability, preventing overbooking and improving the user experience.
-*   **OTP Verification:** A 4-digit OTP is generated for home pickups to ensure secure device handover.
-*   **Mandatory Location Sharing:** The interactive map has been replaced with a "Share Current Location" button. For home pickups, sharing a location is now mandatory. The form cannot be submitted without a valid location URL, ensuring the admin always has the necessary information.
-*   **Flexible Device Input:** The "Device Brand" and "Device Model" dropdowns have been replaced with text fields. This provides users with more flexibility when entering their device information. The fields include validation to ensure that the input is between 2 and 50 characters.
+## 3. Current Task: Advanced Time Slot Booking System
 
-### Admin Dashboard UI Improvements
+This task implements a shared and robust time slot booking system for repair drop-offs.
 
-*   **Status Filtering:** Added a filter mechanism to allow administrators to easily view repair jobs by their status (All, Pending, In Progress, Completed, Cancelled). This was achieved by adding a set of interactive buttons above the repair jobs table.
-*   **Enhanced Row Highlighting:** Implemented distinct background styling for rows in the "All Repair Jobs" table based on their status. This visual cue helps administrators quickly identify the state of each repair job. Pending and In Progress jobs have a subtle background color to draw attention.
-*   **Refined Status Chips:** The `getStatusChip` function was updated to use more distinct icons for each repair status, making it easier to differentiate them at a glance.
-*   **Clickable Location URLs:** For home pickup requests, the Admin Dashboard now displays a clickable "Open Location" link, which opens the customer's location directly in Google Maps.
+### Logic Flow & Requirements
+*   **Data Source:** A new `timeSlots` collection in Firestore will store daily slot availability.
+*   **Working Hours:** Slots will be generated from 10:00 AM to 7:00 PM.
+*   **Interval:** Each slot will be 30 minutes.
+*   **No Past Slots:** The system will automatically prevent booking of slots that are in the past.
+*   **No Double Booking:** A slot cannot be booked if it has reached its maximum capacity.
+*   **Shared Data:** Both users and admins will see the same availability data in real-time.
 
-### Bug Fixes & Refinements
-*   **Resolved 3D Model Error:** Replaced a broken 3D model link that was causing a "404 Not Found" error.
-*   **Fixed Console Errors:** Disabled unnecessary Augmented Reality (AR) features that were causing security errors in the browser console.
-*   **Corrected Typo:** Fixed a typo in the company name ("Drgi" to "DIGI") on the Dashboard page.
-*   **Layout Correction:** Resolved a layout issue causing a white line to appear at the bottom of the authentication pages.
-*   **Code Refactoring:** Refactored the login and sign-up pages to remove the `AuthLayout` component and instead use a conditional rendering approach in `App.jsx`. This fixed a persistent issue with the header and a stray comment. The `Login.jsx` and `SignUp.jsx` files were simplified to remove duplicate layout code. The `Layout.jsx` file was deleted as it was no longer needed.
-*   **Home Page Fixes:** Fixed a broken image link in the "About Us" section and removed a stray `\` character in the "Why Us" section of the `Home.jsx` file.
-*   **Routing and Blank Page Fix:** Resolved a critical bug that caused a blank page and a 404 error on startup. This was due to an incorrect import of a deleted `Layout.jsx` file. The fix involved:
-    *   Moving the entire routing logic into `App.jsx`.
-    *   Simplifying `main.jsx` to only render the main `App` component.
-    *   Creating an `AppWrapper` component to provide the necessary `Router` context for the `useLocation` hook, which is now used in `App.jsx` to conditionally render the main navigation.
-*   **UI/UX Enhancements:**
-    *   **Navigation:** The "Login" and "Sign Up" buttons in the header have been restyled to be more prominent and visually appealing, improving user guidance.
-    *   **Authentication Forms:** The input fields on the Login and Sign Up pages have been enlarged and the form layout has been refined to improve usability and provide a more consistent user experience.
-    *   **Visual Polish:** A subtle spinning animation was added to the logo icon in the header for a more dynamic feel.
-*   **User Dashboard Repair Request Submission Feedback Fix:** The `handleSubmit` function in `src/NewRepairRequest.jsx` was refactored to ensure the user receives immediate and accurate feedback. The creation of the repair document is now handled separately, and the user is navigated to the confirmation page immediately. The subsequent admin notification is handled in a separate `try...catch` block, preventing any notification errors from blocking the user's success confirmation.
-*   **Vite Configuration Fix for Blank Screen:** Resolved a critical issue causing a blank screen and `SyntaxError` on startup. The problem was traced to a module conflict with the `react-leaflet` library within the Vite build environment. The fix involved updating the `vite.config.js` file with an `optimizeDeps` configuration and a `resolve.alias` to ensure the library is correctly processed by Vite.
+### Firestore Data Structure
+*   **Collection:** `timeSlots`
+*   **Document ID:** A unique ID for each slot (e.g., `2024-08-01_10:30`).
+*   **Fields:**
+    *   `timestamp` (Firestore Timestamp): The exact start time of the slot.
+    *   `capacity` (Number): The maximum number of bookings allowed for this slot (e.g., 2).
+    *   `booked` (Number): The current number of bookings for this slot.
+
+### React Implementation (`TimeSlotPicker.jsx`)
+*   **Admin View (`isAdmin` prop = `true`):**
+    *   The component will display ALL time slots for a given day.
+    *   Each slot will show its status (e.g., "1/2 Booked", "Full").
+    *   Admins can select any slot, even if full, to override or adjust bookings.
+*   **User View (`isAdmin` prop = `false`):**
+    *   The component will ONLY display available slots.
+    *   Past slots and full slots will be hidden and disabled.
+
+### Firestore Security Rules
+*   **Read:** All authenticated users will have read-only access to the `timeSlots` collection to check availability.
+*   **Update:** Only authenticated users can update a time slot document, and the update is restricted to only allow incrementing the `booked` count by 1. This prevents malicious updates. Admins will have full write access.

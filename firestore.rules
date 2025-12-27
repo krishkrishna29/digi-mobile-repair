@@ -3,73 +3,72 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /* =========================
-       HELPER FUNCTIONS
-    ========================== */
+    // Helper functions to check user roles by reading the user's document.
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
     function isAuth() {
       return request.auth != null;
     }
 
-    // SAFE admin check (NO get(), NO exists())
-    function isAdmin() {
-      return isAuth() && request.auth.token.admin == true;
+    function isUser(userId) {
+      return isAuth() && request.auth.uid == userId;
     }
 
-    /* =========================
-       USERS
-    ========================== */
+    function isRole(role) {
+      return isAuth() && getUserData(request.auth.uid).role == role;
+    }
+
+    function isAdmin() {
+      return isRole('admin');
+    }
+
+    function isTechnician() {
+      return isRole('technician');
+    }
+
+    // USERS: Users can manage their own profile. Admins have full access.
     match /users/{userId} {
-      allow list: if isAuth() && isAdmin();
-      allow get: if isAuth() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAuth();
-      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
+      allow read, write: if isUser(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
-    /* =========================
-       REPAIRS
-    ========================== */
+    // REPAIRS: Access is based on user roles.
     match /repairs/{repairId} {
-      // REQUIRED for queries + onSnapshot
-      allow read: if isAuth();
+      // READ: Allowed if you own the repair, are an admin, or the assigned technician.
+      allow read: if isAuth() && (isUser(resource.data.userId) || isAdmin() || (isTechnician() && resource.data.assignedTo == request.auth.uid));
 
-      allow create: if isAuth();
+      // CREATE: Any authenticated user can create a repair, but must be for themselves.
+      allow create: if isUser(request.resource.data.userId);
 
-      allow update, delete: if isAuth() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
+      // UPDATE: Permissions are now combined into a single, clear rule.
+      allow update: if isAuth() && (
+        // Admins have full update power.
+        isAdmin() ||
+        // Technicians can update if assigned.
+        (isTechnician() && resource.data.assignedTo == request.auth.uid) ||
+        // Users can only approve/decline a diagnosed repair.
+        (isUser(resource.data.userId) && resource.data.status == 'Diagnosed' && request.resource.data.status in ['Repairing', 'Cancelled'])
+      );
 
+      // DELETE: Only admins can delete repairs.
+      allow delete: if isAdmin();
+
+      // MESSAGES: Subcollection for chat within a repair.
       match /messages/{messageId} {
-        allow read, create: if isAuth();
+        allow read, create: if isAuth() && (isUser(get(/databases/$(database)/documents/repairs/$(repairId)).data.userId) || isAdmin() || isTechnician());
       }
     }
 
-    /* =========================
-       NOTIFICATIONS
-    ========================== */
+    // NOTIFICATIONS: Users can access their own. Admins can access all.
     match /notifications/{notificationId} {
-      // REQUIRED for onSnapshot queries
-      allow read: if isAuth();
-
-      allow create: if isAuth();
-
-      allow update, delete: if isAuth() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
+      allow read, write, delete: if isAuth() && (isUser(resource.data.userId) || isAdmin());
     }
-
-    /* =========================
-       INVENTORY
-    ========================== */
-    match /inventory/{itemId} {
-      allow read: if isAuth();
-      allow create, update, delete: if isAdmin();
-    }
-
-    /* =========================
-       PROMOTIONS
-    ========================== */
-    match /promotions/{promotionId} {
-      allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
+    
+    // Admin-only collections.
+    match /inventory/{itemId} { allow read, write: if isAdmin(); }
+    match /promotions/{promotionId} { allow read, write: if isAdmin(); }
+    match /timeSlots/{slotId} { allow read, write: if isAdmin(); }
   }
 }

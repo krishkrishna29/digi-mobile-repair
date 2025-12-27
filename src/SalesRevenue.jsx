@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from './firebase';
 import {
     ArrowDownTrayIcon,
     ArrowTrendingUpIcon,
@@ -8,39 +10,15 @@ import {
 } from '@heroicons/react/24/solid';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-// Mock Data
-const data = [
-    { name: 'Jan', revenue: 4000, jobs: 24 },
-    { name: 'Feb', revenue: 3000, jobs: 13 },
-    { name: 'Mar', revenue: 5000, jobs: 32 },
-    { name: 'Apr', revenue: 4780, jobs: 39 },
-    { name: 'May', revenue: 5890, jobs: 48 },
-    { name: 'Jun', revenue: 6390, jobs: 38 },
-    { name: 'Jul', revenue: 7490, jobs: 43 },
-];
-
-const serviceData = [
-    { name: 'Screen Repair', value: 400 },
-    { name: 'Battery Replacement', value: 300 },
-    { name: 'Water Damage', value: 300 },
-    { name: 'Software Issue', value: 200 },
-];
-
 const COLORS = ['#6366f1', '#a855f7', '#ec4899', '#22d3ee'];
-
-const recentTransactions = [
-    { id: 'TRX001', customer: 'Ankit Singh', date: '2023-10-26', amount: '₹1,500', status: 'Completed' },
-    { id: 'TRX002', customer: 'Priya Sharma', date: '2023-10-25', amount: '₹800', status: 'Completed' },
-    { id: 'TRX003', customer: 'Rahul Verma', date: '2023-10-25', amount: '₹2,200', status: 'Pending' },
-    { id: 'TRX004', customer: 'Sneha Patel', date: '2023-10-24', amount: '₹1,200', status: 'Completed' },
-    { id: 'TRX005', customer: 'Amit Kumar', date: '2023-10-23', amount: '₹950', status: 'Cancelled' },
-];
 
 const getStatusChip = (status) => {
     const baseClasses = "px-3 py-1 text-xs font-semibold rounded-full inline-flex items-center shadow-sm";
     switch (status) {
         case 'Completed':
             return <span className={`${baseClasses} bg-green-100 text-green-800`}>Completed</span>;
+        case 'Paid':
+                return <span className={`${baseClasses} bg-blue-100 text-blue-800`}>Paid</span>;
         case 'Pending':
             return <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}>Pending</span>;
         case 'Cancelled':
@@ -50,9 +28,78 @@ const getStatusChip = (status) => {
     }
 };
 
-
 const SalesAndRevenue = () => {
     const [timeRange, setTimeRange] = useState('30d');
+    const [revenueData, setRevenueData] = useState([]);
+    const [serviceData, setServiceData] = useState([]);
+    const [recentTransactions, setRecentTransactions] = useState([]);
+    const [stats, setStats] = useState({ totalRevenue: 0, completedJobs: 0, avgJobValue: 0, newCustomers: 0 });
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const getDays = () => {
+                if (timeRange === '7d') return 7;
+                if (timeRange === '30d') return 30;
+                if (timeRange === '90d') return 90;
+                if (timeRange === '12m') return 365; // Approx
+                return 30;
+            }
+            const days = getDays();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - days);
+
+            // Fetch repairs within the date range
+            const repairsRef = collection(db, 'repairs');
+            const q = query(repairsRef, where('createdAt', '>=', startDate));
+            const querySnapshot = await getDocs(q);
+            
+            const repairs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Calculate Stats
+            const completedRepairs = repairs.filter(r => r.status === 'Completed' || r.status === 'Paid');
+            const totalRevenue = completedRepairs.reduce((acc, r) => acc + (r.finalQuote || 0), 0);
+            const completedJobs = completedRepairs.length;
+            const avgJobValue = completedJobs > 0 ? totalRevenue / completedJobs : 0;
+
+            setStats({ totalRevenue, completedJobs, avgJobValue, newCustomers: 0 }); // New customers needs a different logic
+
+            // Format for Revenue Chart (monthly aggregation if range is large)
+            const chartData = {};
+            repairs.forEach(repair => {
+                if (!repair.createdAt) return;
+                const date = repair.createdAt.toDate();
+                const key = (days > 90)
+                    ? date.toLocaleString('default', { month: 'short' })
+                    : date.toLocaleDateString();
+                if (!chartData[key]) chartData[key] = { name: key, revenue: 0, jobs: 0 };
+                if (repair.status === 'Completed' || repair.status === 'Paid') {
+                    chartData[key].revenue += (repair.finalQuote || 0);
+                }
+                chartData[key].jobs += 1;
+            });
+            setRevenueData(Object.values(chartData));
+
+            // Format for Services Pie Chart
+            const serviceCounts = {};
+            completedRepairs.forEach(repair => {
+                const category = repair.issueCategory || 'Other';
+                serviceCounts[category] = (serviceCounts[category] || 0) + 1;
+            });
+            setServiceData(Object.entries(serviceCounts).map(([name, value]) => ({ name, value })));
+
+            // Set recent transactions (assuming we can get user info)
+            const recent = repairs.slice(0, 5).map(r => ({
+                id: r.id.substring(0, 6).toUpperCase(),
+                customer: r.userId.substring(0, 8), // Placeholder for customer name
+                date: r.createdAt?.toDate().toLocaleDateString() || 'N/A',
+                amount: `₹${r.finalQuote || 0}`,
+                status: r.status
+            }));
+            setRecentTransactions(recent);
+        };
+
+        fetchData();
+    }, [timeRange]);
 
     return (
         <div className="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8">
@@ -87,22 +134,22 @@ const SalesAndRevenue = () => {
                 <div className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white p-6 rounded-2xl shadow-lg">
                     <CurrencyRupeeIcon className="h-8 w-8 mb-4 opacity-75" />
                     <p className="text-sm font-medium text-indigo-100">Total Revenue</p>
-                    <p className="text-3xl font-bold">₹89,400</p>
+                    <p className="text-3xl font-bold">₹{stats.totalRevenue.toLocaleString()}</p>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
                     <WrenchScrewdriverIcon className="h-8 w-8 mb-4 text-cyan-500" />
                     <p className="text-sm font-medium text-gray-500">Completed Jobs</p>
-                    <p className="text-3xl font-bold text-gray-800">142</p>
+                    <p className="text-3xl font-bold text-gray-800">{stats.completedJobs}</p>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
                     <CurrencyRupeeIcon className="h-8 w-8 mb-4 text-pink-500" />
                     <p className="text-sm font-medium text-gray-500">Avg. Job Value</p>
-                    <p className="text-3xl font-bold text-gray-800">₹630</p>
+                    <p className="text-3xl font-bold text-gray-800">₹{stats.avgJobValue.toFixed(0)}</p>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
                     <UsersIcon className="h-8 w-8 mb-4 text-amber-500" />
                     <p className="text-sm font-medium text-gray-500">New Customers</p>
-                    <p className="text-3xl font-bold text-gray-800">35</p>
+                    <p className="text-3xl font-bold text-gray-800">{stats.newCustomers}</p>
                 </div>
             </div>
 
@@ -110,17 +157,15 @@ const SalesAndRevenue = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
                 {/* Revenue Trend */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-100">
-                    <div className="flex justify-between items-center mb-6">
+                     <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xl font-bold text-gray-800">Revenue Growth</h3>
-                        <div className="flex items-center space-x-2">
-                            <span className="flex items-center text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded">
-                                <ArrowTrendingUpIcon className="h-3 w-3 mr-1" /> Up 15%
-                            </span>
-                        </div>
-                    </div>
+                         <span className="flex items-center text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded">
+                            <ArrowTrendingUpIcon className="h-3 w-3 mr-1" /> Up 15%
+                         </span>
+                     </div>
                     <div className="h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={data}>
+                            <AreaChart data={revenueData}>
                                 <defs>
                                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>

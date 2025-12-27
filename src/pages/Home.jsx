@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRightIcon } from '@heroicons/react/24/solid';
 import Footer from '../components/Footer';
@@ -38,23 +38,50 @@ const services = [
   },
 ];
 
+const heroImages = [
+  'https://img.freepik.com/premium-photo/photo-technician-repairing-smartphone_1056572-8471.jpg',
+  'https://images.unsplash.com/photo-1512446816042-444d641267d4?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+  'https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D'
+];
+
 const Home = () => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % heroImages.length);
+    }, 5000); // Change image every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="bg-gray-900 text-white">
       {/* Hero Section */}
       <div 
-        className="relative h-[600px] bg-cover bg-center flex items-center"
-        style={{ backgroundImage: 'url(https://img.freepik.com/premium-photo/photo-technician-repairing-smartphone_1056572-8471.jpg)' }}
+        className="relative h-[500px] md:h-[600px] bg-cover bg-center flex items-center transition-all duration-1000 ease-in-out"
+        style={{ backgroundImage: `url(${heroImages[currentImageIndex]})` }}
       >
         <div className="absolute inset-0 bg-black opacity-50"></div>
-        <div className="container mx-auto px-6 md:px-12 relative">
+        <div className="container mx-auto px-6 md:px-12 relative z-10">
           <div className="md:w-1/2">
-            <h1 className="text-5xl font-bold mb-4">Trusted Mobile Phone</h1>
-            <h2 className="text-3xl font-light mb-6">Repair and Services - Ballari</h2>
-            <Link to="/new-repair-request" className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-colors">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4 animate-fade-in-down">Trusted Mobile Phone</h1>
+            <h2 className="text-2xl md:text-3xl font-light mb-6 animate-fade-in-up">Repair and Services - Ballari</h2>
+            <Link to="/new-repair-request" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full text-lg transition-all transform hover:scale-105 shadow-lg inline-block">
               Enquire Now
             </Link>
           </div>
+        </div>
+        
+        {/* Slider Indicators */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex space-x-3">
+          {heroImages.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentImageIndex(index)}
+              className={`w-3 h-3 rounded-full transition-all ${index === currentImageIndex ? 'bg-white w-8' : 'bg-white/50'}`}
+            />
+          ))}
         </div>
       </div>
 

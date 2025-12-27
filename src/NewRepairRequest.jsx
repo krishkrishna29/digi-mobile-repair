@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, addDoc, updateDoc, doc, serverTimestamp, query, where, getDocs, arrayUnion } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, runTransaction, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { useAuth } from './AuthContext';
 import { Switch } from '@headlessui/react';
 import { BuildingStorefrontIcon, TruckIcon, ShareIcon } from '@heroicons/react/24/outline';
-import TimeSlotPicker from './TimeSlotPicker';
+import TimeSlotPicker from './components/TimeSlotPicker';
 
 const issueCategories = {
     "Screen": ["Cracked screen", "Flickering display", "Unresponsive touch"],
@@ -25,20 +25,18 @@ const NewRepairRequest = () => {
     const [repairMode, setRepairMode] = useState('in-store');
     const [deviceBrand, setDeviceBrand] = useState('');
     const [deviceModel, setDeviceModel] = useState('');
-    const [imei, setImei] = useState('');
     const [issueCategory, setIssueCategory] = useState('');
     const [subIssue, setSubIssue] = useState('');
     const [issueDescription, setIssueDescription] = useState('');
     const [pickupAddress, setPickupAddress] = useState('');
     const [pickupCity, setPickupCity] = useState('');
     const [pickupPincode, setPickupPincode] = useState('');
-    const [dropoffTime, setDropoffTime] = useState('');
+    const [dropoffTime, setDropoffTime] = useState(null);
     const [locationUrl, setLocationUrl] = useState('');
     const [isLocationShared, setIsLocationShared] = useState(false);
     const [locationError, setLocationError] = useState('');
 
     const [loading, setLoading] = useState(false);
-    const [imeiWarning, setImeiWarning] = useState('');
 
     useEffect(() => {
         setSubIssue('');
@@ -64,30 +62,6 @@ const NewRepairRequest = () => {
             setLocationError("Geolocation is not supported by this browser.");
         }
     };
-    
-    const checkImei = async (imeiValue) => {
-        if (imeiValue.length < 15) {
-            setImeiWarning('');
-            return;
-        }
-        
-        const repairsRef = collection(db, "repairs");
-        const q = query(repairsRef, where("imei", "==", imeiValue));
-        const querySnapshot = await getDocs(q);
-        if (!querySnapshot.empty) {
-            setImeiWarning("Warning: A device with this IMEI/Serial already exists.");
-        } else {
-            setImeiWarning("");
-        }
-    };
-    
-    const handleImeiChange = (e) => {
-        const value = e.target.value.replace(/[^0-9]/g, '');
-        if(value.length <= 15) {
-            setImei(value);
-            checkImei(value);
-        }
-    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -107,59 +81,90 @@ const NewRepairRequest = () => {
         }
 
         try {
-            const repairData = {
-                userId: currentUser.uid,
-                repairMode,
-                deviceBrand,
-                deviceModel,
-                imei,
-                issueCategory,
-                subIssue,
-                issueDescription,
-                pickupAddress: repairMode === 'home-pickup' ? { address: pickupAddress, city: pickupCity, pincode: pickupPincode, locationUrl: locationUrl } : null,
-                preferredSlot: dropoffTime, // Use the dropoffTime string directly
-                status: 'Requested',
-                createdAt: serverTimestamp(),
-                otp: otp,
-                statusHistory: [], // Initialize as an empty array
-            };
+            await runTransaction(db, async (transaction) => {
+                const slotRef = doc(db, "timeSlots", dropoffTime.id);
+                const slotDoc = await transaction.get(slotRef);
+                
+                let newBookedCount = 1;
+                let capacity = 2; // Default capacity
+                
+                if (slotDoc.exists()) {
+                    const slotData = slotDoc.data();
+                    newBookedCount = (slotData.booked || 0) + 1;
+                    capacity = slotData.capacity || 2;
 
-            const docRef = await addDoc(collection(db, 'repairs'), repairData);
-            
-            const repairDocRef = doc(db, 'repairs', docRef.id);
-            await updateDoc(repairDocRef, {
-                statusHistory: arrayUnion({ status: 'Requested', timestamp: serverTimestamp() })
-            });
+                    if (newBookedCount > capacity) {
+                        throw new Error("This time slot is no longer available. Please select another one.");
+                    }
+                    
+                    transaction.update(slotRef, { booked: newBookedCount });
+                } else {
+                    const [datePart, timePart] = dropoffTime.id.split('_');
+                    const [year, month, day] = datePart.split('-').map(Number);
+                    const [hour, minute] = timePart.split(':').map(Number);
+                    // Note: The month is 0-indexed in JavaScript's Date, so we subtract 1.
+                    const date = new Date(year, month - 1, day, hour, minute);
 
-            navigate('/confirmation', { state: { repairId: docRef.id, repairMode, otp } });
+                    transaction.set(slotRef, { 
+                        booked: newBookedCount,
+                        capacity: capacity,
+                        timestamp: Timestamp.fromDate(date),
+                    });
+                }
+                
+                // Create new repair document within the transaction
+                const repairRef = doc(collection(db, 'repairs'));
+                const repairData = {
+                    userId: currentUser.uid,
+                    repairMode,
+                    deviceBrand,
+                    deviceModel,
+                    issueCategory,
+                    subIssue,
+                    issueDescription,
+                    pickupAddress: repairMode === 'home-pickup' ? { address: pickupAddress, city: pickupCity, pincode: pickupPincode, locationUrl: locationUrl } : null,
+                    preferredSlot: dropoffTime.id,
+                    status: 'Requested',
+                    createdAt: serverTimestamp(),
+                    otp: otp,
+                    statusHistory: [{ status: 'Requested', timestamp: serverTimestamp() }],
+                };
+                transaction.set(repairRef, repairData);
 
-            try {
-                await addDoc(collection(db, 'notifications'), {
-                    userId: 'admin',
+                // Create admin notification within the transaction
+                const adminNotificationRef = doc(collection(db, 'admin_notifications'));
+                const notificationData = {
                     type: 'repair_request_new',
                     title: 'New Repair Request',
-                    message: `A new repair for a ${deviceBrand} ${deviceModel} has been submitted by a customer.`,
+                    message: `A new repair for a ${deviceBrand} ${deviceModel} has been submitted.`,
                     read: false,
                     createdAt: serverTimestamp(),
-                    relatedRepairId: docRef.id
-                });
-            } catch (notificationError) {
-                console.error("Error sending notification:", notificationError);
-            }
+                    relatedRepairId: repairRef.id
+                };
+                transaction.set(adminNotificationRef, notificationData);
+
+                // This navigation can't be inside the transaction, so we do it after.
+                // We store the necessary info and use it after the transaction succeeds.
+                return { repairId: repairRef.id, repairMode, otp };
+            })
+            .then(({repairId, repairMode, otp}) => {
+                navigate('/confirmation', { state: { repairId, repairMode, otp } });
+            });
 
         } catch (error) {
-            console.error("Error adding document: ", error);
+            console.error("Error during transaction: ", error);
             alert(`Error: ${error.message}`);
         } finally {
             setLoading(false);
         }
     };
 
+
     return (
         <div className="bg-slate-800 p-8 rounded-xl shadow-lg max-w-4xl mx-auto text-white">
             <h2 className="text-2xl font-bold mb-6">Submit a New Repair Request</h2>
             <form onSubmit={handleSubmit} className="space-y-8">
-                <div className="flex justify-center items-center space-x-4 bg-slate-700/50 p-2 rounded-lg">
+                 <div className="flex justify-center items-center space-x-4 bg-slate-700/50 p-2 rounded-lg">
                     <BuildingStorefrontIcon className={`h-6 w-6 ${repairMode === 'in-store' ? 'text-blue-400' : 'text-gray-400'}`} />
                     <span className={`${repairMode === 'in-store' ? 'text-white' : 'text-gray-400'}`}>In-Store Drop-off</span>
                     <Switch
@@ -182,12 +187,6 @@ const NewRepairRequest = () => {
                         <label className="block text-sm font-medium text-gray-300 mb-2">Device Model</label>
                         <input type="text" value={deviceModel} onChange={e => setDeviceModel(e.target.value)} required minLength="2" maxLength="50" className="w-full bg-slate-700 p-3 rounded-lg" />
                     </div>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">IMEI / Serial Number (15 digits)</label>
-                    <input type="text" value={imei} onChange={handleImeiChange} placeholder="Enter 15-digit IMEI to check device history" className="w-full bg-slate-700 p-3 rounded-lg" />
-                    {imeiWarning && <p className="text-yellow-400 text-xs mt-2">{imeiWarning}</p>}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -212,15 +211,14 @@ const NewRepairRequest = () => {
                     <textarea value={issueDescription} onChange={e => setIssueDescription(e.target.value)} rows="3" className="w-full bg-slate-700 p-3 rounded-lg"></textarea>
                 </div>
 
-                {repairMode === 'in-store' ? (
-                    <div className="border-t border-slate-700 pt-6">
-                        <h3 className="text-lg font-semibold mb-4">In-Store Drop-off</h3>
-                        <label className="block text-sm font-medium text-gray-300 mb-2">Preferred Drop-off Time Slot</label>
-                        <TimeSlotPicker selectedSlot={dropoffTime} setSelectedSlot={setDropoffTime} />
-                        <p className="text-xs text-gray-400 mt-2">Booking a slot helps you avoid waiting in a queue.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-6 border-t border-slate-700 pt-6">
+                <div className="border-t border-slate-700 pt-6">
+                    <h3 className="text-lg font-semibold mb-4">Select a Time Slot</h3>
+                     <TimeSlotPicker selectedSlot={dropoffTime} onSlotSelect={setDropoffTime} isAdmin={false}/>
+                    <p className="text-xs text-gray-400 mt-2">Booking a slot helps you avoid waiting in a queue.</p>
+                </div>
+
+                {repairMode === 'home-pickup' && (
+                     <div className="space-y-6 border-t border-slate-700 pt-6">
                         <h3 className="text-lg font-semibold">Home Pickup & Delivery</h3>
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">Pickup Address</label>
@@ -235,10 +233,6 @@ const NewRepairRequest = () => {
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Pincode</label>
                                 <input type="text" value={pickupPincode} onChange={e => setPickupPincode(e.target.value)} required className="w-full bg-slate-700 p-3 rounded-lg" />
                            </div>
-                        </div>
-                        <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Select Pickup Time Slot</label>
-                             <TimeSlotPicker selectedSlot={dropoffTime} setSelectedSlot={setDropoffTime} />
                         </div>
                         <div className="mt-4">
                             <label className="block text-sm font-medium text-gray-300 mb-2">Pickup Location <span className="text-red-400 font-bold">*</span></label>
