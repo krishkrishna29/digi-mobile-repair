@@ -25,6 +25,7 @@ import CheckoutForm from "./CheckoutForm";
 import Payment from "./Payment";
 import PromotionsPage from "./PromotionsPage";
 import RepairDetailsPage from "./pages/RepairDetailsPage";
+import DeliveryPartner from "./pages/DeliveryPartner";
 
 const App = () => {
   const [users, setUsers] = useState({});
@@ -98,6 +99,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/promotions" element={<PromotionsPage />} />
+        <Route path="/delivery" element={<DeliveryPartner />} />
 
         <Route
           path="/dashboard"
