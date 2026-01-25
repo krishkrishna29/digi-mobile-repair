@@ -11,7 +11,7 @@ import UserRepairs from './UserRepairs';
 import ProfileSettings from './ProfileSettings';
 import NewRepairRequest from './NewRepairRequest';
 import Invoice from './Invoice';
-import ChatSupport from './ChatSupport'; // Import ChatSupport
+import ChatSupport from './ChatSupport';
 
 // Icons
 import { 
@@ -25,7 +25,7 @@ import {
     CheckCircleIcon,
     Cog8ToothIcon,
     ArrowRightOnRectangleIcon,
-    ChatBubbleLeftRightIcon // Import the chat icon
+    ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 
 const StatCard = ({ icon, title, value, bgColor }) => (
@@ -40,7 +40,8 @@ const StatCard = ({ icon, title, value, bgColor }) => (
     </div>
 );
 
-const DashboardHome = ({ repairs }) => {
+// Updated DashboardHome to accept and pass onPayNow
+const DashboardHome = ({ repairs, onPayNow }) => {
     const totalRepairs = repairs.length;
     const pendingRepairs = repairs.filter(r => r.status !== 'Completed' && r.status !== 'Cancelled').length;
     const completedRepairs = repairs.filter(r => r.status === 'Completed').length;
@@ -67,7 +68,8 @@ const DashboardHome = ({ repairs }) => {
                     bgColor="bg-green-500"
                 />
             </div>
-            <UserRepairs repairs={repairs} />
+            {/* Pass the onPayNow prop to UserRepairs */}
+            <UserRepairs repairs={repairs} onPayNow={onPayNow} />
         </div>
     );
 };
@@ -107,6 +109,12 @@ const UserDashboard = () => {
         logout().then(() => navigate('/login'));
     };
 
+    // Centralized function to handle opening the payment modal
+    const handlePayNow = (repair) => {
+        setSelectedRepair(repair);
+        setShowPaymentModal(true);
+    };
+
     const handlePayment = async (repairId, paymentMethod) => {
         const repairRef = doc(db, "repairs", repairId);
         await updateDoc(repairRef, {
@@ -135,11 +143,12 @@ const UserDashboard = () => {
         }
         switch (activeView) {
             case 'Dashboard':
-                return <DashboardHome repairs={repairs} />;
+                // Pass the handlePayNow function to DashboardHome
+                return <DashboardHome repairs={repairs} onPayNow={handlePayNow} />;
             case 'NewRequest':
                 return <NewRepairRequest />;
             case 'MyRepairs':
-                return <UserRepairs repairs={repairs} onPayNow={(repair) => { setSelectedRepair(repair); setShowPaymentModal(true); }} />;
+                return <UserRepairs repairs={repairs} onPayNow={handlePayNow} />;
             case 'ChatSupport':
                 return <ChatSupport />;
             case 'ProfileSettings':
@@ -224,4 +233,4 @@ const UserDashboard = () => {
     );
 };
 
-export default UserDashboard; 
+export default UserDashboard;

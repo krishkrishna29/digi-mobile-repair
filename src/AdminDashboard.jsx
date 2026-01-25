@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, arrayUnion } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import { signOut } from 'firebase/auth';
@@ -12,7 +12,8 @@ import {
   EyeIcon, UserPlusIcon, TrashIcon, CheckCircleIcon, XCircleIcon, PencilIcon, MapPinIcon,
   SparklesIcon,
   LinkIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  CogIcon // Import CogIcon for settings
 } from '@heroicons/react/24/solid';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -28,9 +29,10 @@ import Support from './Support';
 import ConfirmationModal from './ConfirmationModal';
 import AssignJobModal from './AssignJobModal';
 import UpdateStatusModal from './UpdateStatusModal';
-import Chat from './Chat'; // Import the Chat component
+import Chat from './Chat';
 import ChatSupport from './ChatSupport';
 import CustomerProfile from './CustomerProfile';
+import InvoiceSettings from './InvoiceSettings'; // Import the new component
 
 const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F'];
 
@@ -52,8 +54,12 @@ const getStatusChip = (status) => {
     const baseClasses = "px-3 py-1 text-xs font-semibold rounded-full inline-flex items-center shadow-sm";
     switch (status) {
         case 'In Progress':
+        case 'Repairing':
+        case 'Picked Up':
+        case 'Diagnosed':
             return <span className={`${baseClasses} bg-blue-100 text-blue-800`}><ClockIcon className="h-4 w-4 mr-1.5" />{status}</span>;
         case 'Completed':
+        case 'Ready':
             return <span className={`${baseClasses} bg-green-100 text-green-800`}><CheckCircleIcon className="h-4 w-4 mr-1.5" />{status}</span>;
         case 'Pending':
             return <span className={`${baseClasses} bg-yellow-100 text-yellow-800`}><SparklesIcon className="h-4 w-4 mr-1.5" />{status}</span>;
@@ -76,7 +82,13 @@ const RepairJobs = ({ repairs, users, onDeleteJob, onAssignClick, onUpdateStatus
         setSelectedRepairId(selectedRepairId === repairId ? null : repairId);
     };
 
-    const filteredJobs = repairs.filter(job => filterStatus === 'All' || job.status === filterStatus);
+    const filteredJobs = repairs.filter(job => {
+        if (filterStatus === 'All') return true;
+        if (filterStatus === 'In Progress') {
+            return ['In Progress', 'Picked Up', 'Diagnosed', 'Repairing'].includes(job.status);
+        }
+        return job.status === filterStatus;
+    });
 
     const indexOfLastJob = currentPage * jobsPerPage;
     const indexOfFirstJob = indexOfLastJob - jobsPerPage;
@@ -85,14 +97,9 @@ const RepairJobs = ({ repairs, users, onDeleteJob, onAssignClick, onUpdateStatus
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
     const getRowStyle = (status) => {
-        switch (status) {
-            case 'Pending':
-                return 'bg-yellow-50/50';
-            case 'In Progress':
-                return 'bg-blue-50/50';
-            default:
-                return '';
-        }
+        if (status === 'Pending') return 'bg-yellow-50/50';
+        if (['In Progress', 'Picked Up', 'Diagnosed', 'Repairing'].includes(status)) return 'bg-blue-50/50';
+        return '';
     };
 
     const filterButtons = ['All', 'Pending', 'In Progress', 'Completed', 'Cancelled'];
@@ -155,7 +162,7 @@ const RepairJobs = ({ repairs, users, onDeleteJob, onAssignClick, onUpdateStatus
                                             <div className="p-2">
                                                 <button onClick={() => { onUpdateStatusClick(job); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><PencilIcon className="h-4 w-4 mr-3"/>Update Status</button>
                                                 <button onClick={() => { onAssignClick(job); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><UserPlusIcon className="h-4 w-4 mr-3"/>Assign Tech</button>
-                                                <button onClick={() => { handleToggleDetails(job.id); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><EyeIcon className="h-4 w-4 mr-3"/>View Details</button>
+                                                <Link to={`/admin/repair/${job.id}`} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><EyeIcon className="h-4 w-4 mr-3"/>View Details</Link>
                                                 <button onClick={() => { onDeleteJob(job.id); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"><TrashIcon className="h-4 w-4 mr-3"/>Delete</button>
                                             </div>
                                         </div>
@@ -195,13 +202,13 @@ const SalesAndRevenue = () => (
     </div>
 );
 
-const DashboardContent = ({ repairs, pendingJobs, jobStatusData, weeklyTrendData }) => (
+const DashboardContent = ({ repairs, pendingJobs, jobStatusData, weeklyTrendData, totalRevenue }) => (
   <>
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       <div className="bg-gradient-to-br from-purple-50 to-indigo-100 p-6 rounded-2xl shadow-lg flex flex-col items-center text-center">
         <div className="p-4 bg-white/50 rounded-full mb-4 ring-2 ring-purple-200"><BanknotesIcon className="h-12 w-12 text-purple-600" /></div>
         <p className="text-lg font-semibold text-gray-700">Total Revenue</p>
-        <p className="text-3xl font-bold text-gray-900">₹63,200</p>
+        <p className="text-3xl font-bold text-gray-900">₹{totalRevenue.toLocaleString()}</p>
       </div>
       <div className="bg-gradient-to-br from-blue-50 to-cyan-100 p-6 rounded-2xl shadow-lg flex flex-col items-center text-center">
          <div className="p-4 bg-white/50 rounded-full mb-4 ring-2 ring-blue-200"><BriefcaseIcon className="h-12 w-12 text-blue-600" /></div>
@@ -300,9 +307,9 @@ function AdminDashboard({users, repairs, setUsers}) {
         const repairRef = doc(db, 'repairs', job.id);
         await updateDoc(repairRef, updateData);
 
-        // Send notification to user
-        await addDoc(collection(db, 'notifications'), {
-            userId: job.userId,
+        // Create a notification in the user's subcollection
+        const notificationRef = collection(db, 'users', job.userId, 'notifications');
+        await addDoc(notificationRef, {
             type: 'status_update',
             title: 'Repair Status Updated',
             message: `The status of your repair for the ${job.deviceBrand} ${job.deviceModel} has been updated to ${updateData.status}`,
@@ -339,10 +346,15 @@ function AdminDashboard({users, repairs, setUsers}) {
         })
     });
     
-    await addDoc(collection(db, 'notifications'), {
-        userId: techId, type: 'info', title: 'New Job Assigned',
+    // Create a notification for the technician
+    const techNotificationRef = collection(db, 'users', techId, 'notifications');
+    await addDoc(techNotificationRef, {
+        type: 'info', 
+        title: 'New Job Assigned',
         message: `A new repair job for "${job?.deviceBrand} ${job?.deviceModel}" has been assigned to you.`,
-        read: false, createdAt: serverTimestamp(), relatedRepairId: jobId,
+        read: false, 
+        createdAt: serverTimestamp(), 
+        relatedRepairId: jobId,
     });
 
     setIsAssignModalOpen(false);
@@ -370,6 +382,13 @@ function AdminDashboard({users, repairs, setUsers}) {
 
   const completedJobs = repairs.filter(r => r.status === 'Completed').length;
   const pendingJobs = repairs.filter(r => r.status !== 'Completed' && r.status !== 'Cancelled').length;
+  const totalRevenue = repairs
+    .filter(r => r.status === 'Completed')
+    .reduce((acc, curr) => {
+        const amount = curr.totalAmount || curr.cost || 0;
+        return acc + (typeof amount === 'number' ? amount : parseFloat(amount) || 0);
+    }, 0);
+    
   const jobStatusData = [{ name: 'Completed', value: completedJobs }, { name: 'Pending', value: pendingJobs }];
 
   const processWeeklyData = (repairs) => {
@@ -396,7 +415,8 @@ function AdminDashboard({users, repairs, setUsers}) {
       onViewCustomer: handleViewCustomerProfile,
       pendingJobs, 
       jobStatusData, 
-      weeklyTrendData 
+      weeklyTrendData, 
+      totalRevenue
     };
 
     const viewMap = {
@@ -411,6 +431,7 @@ function AdminDashboard({users, repairs, setUsers}) {
         'notifications': <Notifications />,
         'support': <Support />,
         'chat-support': <ChatSupport />,
+        'invoice-settings': <InvoiceSettings />,
         'customer-profile': selectedCustomerId ? (
           <CustomerProfile 
             user={users[selectedCustomerId]} 
@@ -444,7 +465,8 @@ function AdminDashboard({users, repairs, setUsers}) {
                   </div>
                   <div className="relative">
                       <button onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)} className="flex items-center p-2 rounded-full hover:bg-gray-200"><UserCircleIcon className="h-8 w-8 text-gray-500" /></button>
-                      {isProfileMenuOpen && <div ref={profileMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl py-2 z-50"><button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sign Out</button></div>}
+                      {isProfileMenuOpen && <div ref={profileMenuRef} className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl py-2 z-50"><button onClick={handleSignOut} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Sign Out</button>
+                      <button onClick={() => { setActiveView('invoice-settings'); setIsProfileMenuOpen(false); }} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Invoice Settings</button></div>}
                   </div>
               </div>
           </header>

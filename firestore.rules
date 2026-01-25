@@ -3,10 +3,12 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+
     // =========================
     // Helper Functions
     // =========================
     function isAuth() {
+      // User must be authenticated.
       return request.auth != null;
     }
 
@@ -36,27 +38,27 @@ service cloud.firestore {
     }
 
     // =========================
+    // COUNTERS
+    // =========================
+    match /counters/{counterId} {
+      allow read: if isAuth();
+      allow write: if isAuth(); // For transactions
+    }
+
+    // =========================
     // REPAIRS
     // =========================
     match /repairs/{repairId} {
-      allow read: if isAuth() && (isOwner(resource.data.userId) || isAdmin() || (isTechnician() && resource.data.assignedTo == request.auth.uid));
-      // TEMPORARY DIAGNOSTIC RULE
-      allow create: if isAuth(); 
-      allow update: if (isAdmin() || 
-                       (isTechnician() && resource.data.assignedTo == request.auth.uid) ||
-                       (isOwner(resource.data.userId) && resource.data.status == 'Diagnosed' && request.resource.data.status in ['Repairing', 'Cancelled']));
+      allow read, update: if isAuth() && (isOwner(resource.data.userId) || isAdmin() || isTechnician());
+      allow create: if isAuth();
       allow delete: if isAdmin();
-
-      match /messages/{messageId} {
-        allow read, create: if isAuth() && (isOwner(get(/databases/$(database)/documents/repairs/$(repairId)).data.userId) || isAdmin() || isTechnician());
-      }
     }
 
     // =========================
     // NOTIFICATIONS (User-facing)
     // =========================
     match /notifications/{notificationId} {
-      allow read, delete: if isAuth() && (isOwner(resource.data.userId) || isAdmin());
+      allow read, delete: if isAuth() && (isOwner(resource.data.userId) || isAdmin() || resource.data.userId == 'all');
       allow create: if isAuth() && (isOwner(request.resource.data.userId) || isAdmin());
       allow update: if isAuth() && isOwner(resource.data.userId);
     }
@@ -66,8 +68,15 @@ service cloud.firestore {
     // =========================
     match /admin_notifications/{notificationId} {
       allow read, update, delete: if isAdmin();
-      // Any authenticated user can create a notification. The app ensures it's tied to a repair.
       allow create: if isAuth();
+    }
+
+    // =========================
+    // CHATS
+    // =========================
+    match /chats/{chatId} {
+      allow read, create: if isAuth() && (isOwner(get(/databases/$(database)/documents/repairs/$(request.resource.data.repairId)).data.userId) || isAdmin() || isTechnician());
+      allow update, delete: if isAdmin();
     }
 
     // =========================
@@ -78,11 +87,17 @@ service cloud.firestore {
     }
     
     match /promotions/{promotionId} {
-      allow read, write, create, delete: if isAdmin();
+      allow read: if true; // Promotions are public
+      allow write, create, delete: if isAdmin();
     }
 
-    match /timeSlots/{slotId} {
-        allow read, write, create, delete: if isAdmin();
+    // =========================
+    // SETTINGS (This is the new part)
+    // =========================
+    match /settings/invoice {
+        allow read: if isAuth();
+        allow write: if isAdmin();
     }
+
   }
 }

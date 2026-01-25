@@ -24,6 +24,7 @@ import SalesRevenue from "./SalesRevenue";
 import CheckoutForm from "./CheckoutForm";
 import Payment from "./Payment";
 import PromotionsPage from "./PromotionsPage";
+import RepairDetailsPage from "./pages/RepairDetailsPage";
 
 const App = () => {
   const [users, setUsers] = useState({});
@@ -143,6 +144,15 @@ const App = () => {
                 repairs={repairs}
                 setUsers={setUsers}
               />
+            </AdminRoute>
+          }
+        />
+        
+        <Route
+          path="/admin/repair/:repairId"
+          element={
+            <AdminRoute>
+              <RepairDetailsPage />
             </AdminRoute>
           }
         />
