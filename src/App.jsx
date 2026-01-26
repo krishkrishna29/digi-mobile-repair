@@ -8,8 +8,9 @@ import { useAuth } from "./AuthContext.jsx";
 import Navigation from "./Navigation";
 import AdminRoute from "./AdminRoute";
 import UserRoute from "./UserRoute";
+import DeliveryRoute from "./DeliveryRoute";
 import NewRepairRequest from "./NewRepairRequest";
-import Confirmation from "./Confirmation"; // Import the new Confirmation component
+import Confirmation from "./Confirmation";
 import OTPVerification from "./OTPVerification";
 
 // Pages
@@ -20,12 +21,15 @@ import Login from "./Login";
 import Signup from "./SignUp";
 import UserDashboard from "./UserDashboard";
 import AdminDashboard from "./AdminDashboard";
+import DeliveryDashboard from "./DeliveryDashboard";
+import DeliveryJobDetails from "./DeliveryJobDetails";
 import SalesRevenue from "./SalesRevenue";
 import CheckoutForm from "./CheckoutForm";
 import Payment from "./Payment";
 import PromotionsPage from "./PromotionsPage";
 import RepairDetailsPage from "./pages/RepairDetailsPage";
 import DeliveryPartner from "./pages/DeliveryPartner";
+import AdminDeliveryPartners from "./pages/AdminDeliveryPartners";
 
 const App = () => {
   const [users, setUsers] = useState({});
@@ -68,13 +72,17 @@ const App = () => {
           if (location.pathname === '/login' || location.pathname === '/signup') {
             navigate('/admin', { replace: true });
           }
+        } else if (userProfile.role === 'delivery') {
+          if (location.pathname === '/login' || location.pathname === '/signup') {
+            navigate('/delivery', { replace: true });
+          }
         } else {
           if (location.pathname === '/login' || location.pathname === '/signup') {
             navigate('/dashboard', { replace: true });
           }
         }
       } else {
-        if (location.pathname.startsWith('/admin') || location.pathname.startsWith('/dashboard')) {
+        if (location.pathname.startsWith('/admin') || location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/delivery')) {
           navigate('/login', { replace: true });
         }
       }
@@ -99,7 +107,7 @@ const App = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/promotions" element={<PromotionsPage />} />
-        <Route path="/delivery" element={<DeliveryPartner />} />
+        
 
         <Route
           path="/dashboard"
@@ -149,6 +157,15 @@ const App = () => {
             </AdminRoute>
           }
         />
+
+        <Route
+          path="/admin/delivery-partners"
+          element={
+            <AdminRoute>
+              <AdminDeliveryPartners />
+            </AdminRoute>
+          }
+        />
         
         <Route
           path="/admin/repair/:repairId"
@@ -156,6 +173,24 @@ const App = () => {
             <AdminRoute>
               <RepairDetailsPage />
             </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/delivery"
+          element={
+            <DeliveryRoute>
+              <DeliveryDashboard />
+            </DeliveryRoute>
+          }
+        />
+
+        <Route
+          path="/delivery/job/:jobId"
+          element={
+            <DeliveryRoute>
+              <DeliveryJobDetails />
+            </DeliveryRoute>
           }
         />
 

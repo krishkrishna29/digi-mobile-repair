@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { collection, onSnapshot, query, where, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, writeBatch, arrayUnion } from 'firebase/firestore';
@@ -13,7 +14,8 @@ import {
   SparklesIcon,
   LinkIcon,
   ChatBubbleLeftRightIcon,
-  CogIcon // Import CogIcon for settings
+  CogIcon,
+  TruckIcon
 } from '@heroicons/react/24/solid';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -32,7 +34,8 @@ import UpdateStatusModal from './UpdateStatusModal';
 import Chat from './Chat';
 import ChatSupport from './ChatSupport';
 import CustomerProfile from './CustomerProfile';
-import InvoiceSettings from './InvoiceSettings'; // Import the new component
+import InvoiceSettings from './InvoiceSettings'; 
+import AdminDeliveryPartners from './pages/AdminDeliveryPartners'; // Import the new component
 
 const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F'];
 
@@ -42,6 +45,7 @@ const menuItems = [
     { id: 'sales-revenue', text: 'Sales & Revenue', icon: TicketIcon },
     { id: 'customers', text: 'Customers', icon: UserGroupIcon },
     { id: 'technicians', text: 'Technician Management', icon: BriefcaseIcon },
+    { id: 'delivery-partners', text: 'Delivery Partners', icon: TruckIcon }, // Updated Item
     { id: 'inventory', text: 'Inventory', icon: ArchiveBoxIcon },
     { id: 'reports', text: 'Reports & Analytics', icon: DocumentChartBarIcon },
     { id: 'notifications', text: 'Notifications', icon: BellIcon },
@@ -426,6 +430,7 @@ function AdminDashboard({users, repairs, setUsers}) {
         'customers': <Customers {...props} />,
         'promotions': <Promotions />,
         'technicians': <Technicians />,
+        'delivery-partners': <AdminDeliveryPartners />, // Corrected Entry
         'inventory': <Inventory />,
         'reports': <Reports />,
         'notifications': <Notifications />,

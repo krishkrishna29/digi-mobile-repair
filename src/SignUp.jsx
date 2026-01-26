@@ -1,15 +1,17 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db } from './firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { UserIcon, EnvelopeIcon, LockClosedIcon, WrenchScrewdriverIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, LockClosedIcon, WrenchScrewdriverIcon, EyeIcon, EyeSlashIcon, UserGroupIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 export default function SignUp() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('user'); // Default role
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const auth = getAuth();
@@ -70,9 +72,16 @@ export default function SignUp() {
       await setDoc(doc(db, 'users', user.uid), {
         fullName,
         email,
-        role: 'user'
+        role: role // Use the state for role
       });
-      navigate('/dashboard');
+      
+      // Redirect based on role
+      if (role === 'delivery') {
+        navigate('/delivery');
+      } else {
+        navigate('/dashboard');
+      }
+
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
         toast.error('Email address is already in use.');
@@ -132,9 +141,26 @@ export default function SignUp() {
                     </div>
                 </div>
             </div>
+
+            {/* Role Selection - Hidden by default for backward compatibility */}
+            <div className="mb-4 hidden">
+                <div className="relative">
+                    <UserGroupIcon className="h-5 w-5 text-gray-400 absolute top-1/2 -translate-y-1/2 left-4" />
+                    <select 
+                      value={role} 
+                      onChange={(e) => setRole(e.target.value)} 
+                      className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base md:text-lg"
+                    >
+                      <option value="user">User</option>
+                      <option value="delivery">Delivery Partner</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+
             <button type="submit" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition duration-300 ease-in-out transform hover:scale-105 shadow-lg shadow-purple-500/50 text-base md:text-lg">SIGN UP</button>
             <p className="mt-6 text-center text-sm text-gray-400">
-              Already have an account? {' '}
+              Already have an account? { ' '}
               <Link to="/login" className="font-medium text-purple-400 hover:underline">Login</Link>
             </p>
           </form>
