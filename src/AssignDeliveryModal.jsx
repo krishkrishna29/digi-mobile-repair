@@ -3,23 +3,25 @@ import { db } from './firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 
-const AssignJobModal = ({ repair, onClose, onAssign }) => {
+const AssignDeliveryModal = ({ isOpen, repair, onClose, onAssign }) => {
     const [deliveryPartners, setDeliveryPartners] = useState([]);
     const [selectedPartner, setSelectedPartner] = useState('');
 
     useEffect(() => {
-        const fetchDeliveryPartners = async () => {
-            try {
-                const q = query(collection(db, 'users'), where('role', '==', 'delivery'));
-                const querySnapshot = await getDocs(q);
-                const partners = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                setDeliveryPartners(partners);
-            } catch (error) {
-                toast.error("Failed to fetch delivery partners.");
-            }
-        };
-        fetchDeliveryPartners();
-    }, []);
+        if (isOpen) {
+            const fetchDeliveryPartners = async () => {
+                try {
+                    const q = query(collection(db, 'users'), where('role', '==', 'delivery'));
+                    const querySnapshot = await getDocs(q);
+                    const partners = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setDeliveryPartners(partners);
+                } catch (error) {
+                    toast.error("Failed to fetch delivery partners.");
+                }
+            };
+            fetchDeliveryPartners();
+        }
+    }, [isOpen]);
 
     const handleAssign = () => {
         if (!selectedPartner) {
@@ -29,6 +31,8 @@ const AssignJobModal = ({ repair, onClose, onAssign }) => {
         const partner = deliveryPartners.find(p => p.id === selectedPartner);
         onAssign(repair.id, partner);
     };
+
+    if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
@@ -71,4 +75,4 @@ const AssignJobModal = ({ repair, onClose, onAssign }) => {
     );
 };
 
-export default AssignJobModal;
+export default AssignDeliveryModal;

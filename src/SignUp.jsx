@@ -1,16 +1,16 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { db } from './firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { UserIcon, EnvelopeIcon, LockClosedIcon, WrenchScrewdriverIcon, EyeIcon, EyeSlashIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, LockClosedIcon, WrenchScrewdriverIcon, EyeIcon, EyeSlashIcon, UserGroupIcon, PhoneIcon } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 
 export default function SignUp() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [role, setRole] = useState('user'); // Default role
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -37,6 +37,14 @@ export default function SignUp() {
     } else if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.com$/.test(email)) {
       toast.error('Email address is invalid. It must be lowercase and end with .com');
       return false;
+    }
+    
+    if (!phoneNumber) {
+      toast.error('Phone number is required.');
+      return false;
+    } else if (!/^\d{10}$/.test(phoneNumber)) {
+        toast.error('Phone number must be 10 digits.');
+        return false;
     }
 
     if (!password) {
@@ -72,6 +80,7 @@ export default function SignUp() {
       await setDoc(doc(db, 'users', user.uid), {
         fullName,
         email,
+        phoneNumber,
         role: role // Use the state for role
       });
       
@@ -126,6 +135,12 @@ export default function SignUp() {
               <div className="relative">
                 <EnvelopeIcon className="h-5 w-5 text-gray-400 absolute top-1/2 -translate-y-1/2 left-4"/>
                 <input type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value.toLowerCase())} className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base md:text-lg" />
+              </div>
+            </div>
+            <div className="mb-4">
+              <div className="relative">
+                <PhoneIcon className="h-5 w-5 text-gray-400 absolute top-1/2 -translate-y-1/2 left-4"/>
+                <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded-lg py-3 pl-12 pr-4 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-base md:text-lg" />
               </div>
             </div>
             <div className="mb-4">

@@ -167,9 +167,20 @@ const UserDashboard = () => {
         </button>
     );
 
+    const BottomNavLink = ({ icon, text, viewName }) => (
+        <button
+            onClick={() => setActiveView(viewName)}
+            className={`flex flex-col items-center justify-center w-full pt-3 pb-2 transition-colors duration-200 ${activeView === viewName ? 'text-blue-400' : 'text-gray-400 hover:text-white'}`}
+        >
+            {icon}
+            <span className="text-xs mt-1 font-medium">{text}</span>
+        </button>
+    );
+
     return (
         <div className="flex h-screen bg-slate-900 text-white font-sans">
-            <aside className="w-64 bg-slate-800 flex flex-col">
+            {/* --- Sidebar for Desktop --- */}
+            <aside className="w-64 bg-slate-800 flex-col hidden md:flex">
                 <div className="px-6 py-5 border-b border-slate-700">
                     <h2 className="text-xl font-bold">My Dashboard</h2>
                 </div>
@@ -213,10 +224,19 @@ const UserDashboard = () => {
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-y-auto p-8">
+                <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
                     {renderContent()}
                 </main>
             </div>
+
+            {/* --- Bottom Navigation for Mobile --- */}
+            <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-800 border-t border-slate-700 flex justify-around">
+                <BottomNavLink icon={<ChartBarIcon className="h-6 w-6" />} text="Dashboard" viewName="Dashboard" />
+                <BottomNavLink icon={<PlusIcon className="h-6 w-6" />} text="New" viewName="NewRequest" />
+                <BottomNavLink icon={<WrenchScrewdriverIcon className="h-6 w-6" />} text="Repairs" viewName="MyRepairs" />
+                <BottomNavLink icon={<ChatBubbleLeftRightIcon className="h-6 w-6" />} text="Chat" viewName="ChatSupport" />
+            </div>
+
             {showPaymentModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                     <div className="bg-slate-800 p-8 rounded-lg">

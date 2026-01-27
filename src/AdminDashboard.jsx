@@ -36,6 +36,7 @@ import ChatSupport from './ChatSupport';
 import CustomerProfile from './CustomerProfile';
 import InvoiceSettings from './InvoiceSettings'; 
 import AdminDeliveryPartners from './pages/AdminDeliveryPartners'; // Import the new component
+import AssignDeliveryModal from './AssignDeliveryModal';
 
 const COLORS = ['#0088FE', '#FF8042', '#FFBB28', '#00C49F'];
 
@@ -165,7 +166,7 @@ const RepairJobs = ({ repairs, users, onDeleteJob, onAssignClick, onUpdateStatus
                                         <div className={`absolute right-0 z-50 w-56 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 ${index > currentJobs.length - 3 ? 'bottom-full mb-2' : 'mt-2'}`}>
                                             <div className="p-2">
                                                 <button onClick={() => { onUpdateStatusClick(job); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><PencilIcon className="h-4 w-4 mr-3"/>Update Status</button>
-                                                <button onClick={() => { onAssignClick(job); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><UserPlusIcon className="h-4 w-4 mr-3"/>Assign Tech</button>
+                                                <button onClick={() => { onAssignClick(job); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><UserPlusIcon className="h-4 w-4 mr-3"/>Assign</button>
                                                 <Link to={`/admin/repair/${job.id}`} className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-900 hover:bg-gray-100"><EyeIcon className="h-4 w-4 mr-3"/>View Details</Link>
                                                 <button onClick={() => { onDeleteJob(job.id); setOpenMenu(null); }} className="flex items-center w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"><TrashIcon className="h-4 w-4 mr-3"/>Delete</button>
                                             </div>
@@ -249,6 +250,7 @@ function AdminDashboard({users, repairs, setUsers}) {
   const [userToDelete, setUserToDelete] = useState(null);
   const [jobToDelete, setJobToDelete] = useState(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isAssignDeliveryModalOpen, setIsAssignDeliveryModalOpen] = useState(false);
   const [jobToAssign, setJobToAssign] = useState(null);
   const [isUpdateStatusModalOpen, setIsUpdateStatusModalOpen] = useState(false);
   const [jobToUpdateStatus, setJobToUpdateStatus] = useState(null);
@@ -267,12 +269,13 @@ function AdminDashboard({users, repairs, setUsers}) {
   }, []);
 
   useEffect(() => {
-    const qTechs = query(collection(db, "users"), where("role", "==", "technician"));
+    const qTechs = query(collection(db, "users"), where("role", "in", ["technician", "delivery"]));
     const unsubscribeTechnicians = onSnapshot(qTechs, (querySnapshot) => {
         setTechnicians(querySnapshot.docs.map(doc => ({id: doc.id, ...doc.data()})));
     });
     return () => unsubscribeTechnicians();
-  }, []);
+}, []);
+
 
   const handleSignOut = () => {
     signOut(auth).then(() => navigate('/login'));
@@ -333,35 +336,48 @@ function AdminDashboard({users, repairs, setUsers}) {
   
   const handleAssignClick = (job) => {
     setJobToAssign(job);
-    setIsAssignModalOpen(true);
+    if (job.repairMode === 'home-pickup' || job.status === 'Ready') {
+        setIsAssignDeliveryModalOpen(true);
+    } else {
+        setIsAssignModalOpen(true);
+    }
   };
 
-  const handleAssignJob = async (jobId, techId) => {
+  const handleAssignJob = async (jobId, techOrPartner) => {
     const repairRef = doc(db, 'repairs', jobId);
     const job = repairs.find(r => r.id === jobId);
-    
-    await updateDoc(repairRef, { 
-        assignedTo: techId, 
-        status: 'In Progress',
+    const isDelivery = techOrPartner.role === 'delivery';
+
+    const updateData = {
+        status: isDelivery ? 'Picked Up' : 'In Progress',
         statusHistory: arrayUnion({
-            status: 'In Progress',
+            status: isDelivery ? 'Picked Up' : 'In Progress',
             timestamp: new Date(),
-            notes: 'Technician assigned to the job.'
+            notes: `${isDelivery ? 'Delivery partner' : 'Technician'} assigned.`
         })
-    });
+    };
+
+    if (isDelivery) {
+        updateData.deliveryPartnerId = techOrPartner.id;
+    } else {
+        updateData.assignedTo = techOrPartner.id;
+    }
     
-    // Create a notification for the technician
-    const techNotificationRef = collection(db, 'users', techId, 'notifications');
-    await addDoc(techNotificationRef, {
+    await updateDoc(repairRef, updateData);
+    
+    // Create a notification for the technician or delivery partner
+    const notificationRef = collection(db, 'users', techOrPartner.id, 'notifications');
+    await addDoc(notificationRef, {
         type: 'info', 
         title: 'New Job Assigned',
-        message: `A new repair job for "${job?.deviceBrand} ${job?.deviceModel}" has been assigned to you.`,
+        message: `A new job for "${job?.deviceBrand} ${job?.deviceModel}" has been assigned to you.`,
         read: false, 
         createdAt: serverTimestamp(), 
         relatedRepairId: jobId,
     });
 
     setIsAssignModalOpen(false);
+    setIsAssignDeliveryModalOpen(false);
     setJobToAssign(null);
   };
 
@@ -487,7 +503,8 @@ function AdminDashboard({users, repairs, setUsers}) {
         onNotificationClick={handleNotificationClick}
       />
       <ConfirmationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onConfirm={confirmDelete} title={jobToDelete ? "Delete Job" : "Delete User"} message={jobToDelete ? "Are you sure you want to delete this job?" : "Are you sure you want to delete this user?"}/>
-      <AssignJobModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} onAssign={handleAssignJob} technicians={technicians} job={jobToAssign}/>
+      <AssignJobModal isOpen={isAssignModalOpen} onClose={() => setIsAssignModalOpen(false)} onAssign={handleAssignJob} technicians={technicians.filter(t => t.role === 'technician')} job={jobToAssign}/>
+      <AssignDeliveryModal isOpen={isAssignDeliveryModalOpen} onClose={() => setIsAssignDeliveryModalOpen(false)} onAssign={handleAssignJob} repair={jobToAssign} />
       <UpdateStatusModal isOpen={isUpdateStatusModalOpen} onClose={() => setIsUpdateStatusModalOpen(false)} onUpdateStatus={handleStatusChange} job={jobToUpdateStatus}/>
     </>
   );
